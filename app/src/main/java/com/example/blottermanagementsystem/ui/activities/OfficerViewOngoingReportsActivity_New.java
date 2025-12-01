@@ -156,8 +156,21 @@ public class OfficerViewOngoingReportsActivity_New extends BaseActivity {
         androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
         if (toolbar != null) {
             toolbar.setTitle("Active Cases");
-            toolbar.setNavigationOnClickListener(v -> finish());
+            toolbar.setNavigationOnClickListener(v -> goBackToOfficerDashboard());
         }
+    }
+    
+    private void goBackToOfficerDashboard() {
+        Intent intent = new Intent(this, OfficerDashboardActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent);
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        finish();
+    }
+    
+    @Override
+    public void onBackPressed() {
+        goBackToOfficerDashboard();
     }
     
     private void setupListeners() {
