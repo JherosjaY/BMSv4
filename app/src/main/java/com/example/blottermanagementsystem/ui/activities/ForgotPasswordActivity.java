@@ -97,42 +97,27 @@ public class ForgotPasswordActivity extends BaseActivity {
         com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "📧 Sending reset code...");
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
-            User user = database.userDao().getUserByEmail(email);
-            
-            runOnUiThread(() -> {
-                com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                User user = database.userDao().getUserByEmail(email);
                 
-                if (user == null) {
-                    showError("No account found with this email address");
-                    return;
-                }
-                
-                // Generate reset code
-                generatedCode = String.valueOf((int) (Math.random() * 900000) + 100000);
-                userEmail = email;
-                codeExpiryTime = System.currentTimeMillis() + (5 * 60 * 1000);
-                
-                // Save reset code to database
-                Executors.newSingleThreadExecutor().execute(() -> {
-                    database.userDao().setResetCode(email, generatedCode, codeExpiryTime);
+                runOnUiThread(() -> {
+                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
                     
-                    runOnUiThread(() -> {
-                        // TODO: Implement email sending for reset code
-                        // For now, just show the code (in production, send via email)
-                        android.util.Log.d("ForgotPassword", "Reset code: " + generatedCode);
-                        
-                        // Show code entry step (remove code display)
-                        showResetCodeStep();
-                        startCountdownTimer();
-                        
-                        Toast.makeText(this, "Reset code sent to your email!", Toast.LENGTH_SHORT).show();
-                    });
+                    if (user == null) {
+                        showError("No account found with this email address");
+                        return;
+                    }
+                    
+                    // Navigate to email verification screen for password reset
+                    Intent intent = new Intent(ForgotPasswordActivity.this, EmailVerificationActivity.class);
+                    intent.putExtra("email", email);
+                    intent.putExtra("type", "reset_password");
+                    startActivity(intent);
+                    finish();
                 });
-            });
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    showError("Error sending reset code: " + e.getMessage());
+                    showError("Error: " + e.getMessage());
                 });
             }
         });

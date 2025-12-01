@@ -248,13 +248,15 @@ public class RegisterActivity extends BaseActivity {
     }
     
     private void handleRegisterSuccess() {
-        // Get user details
-        String username = etUsername.getText().toString().trim();
-        String password = etPassword.getText().toString().trim();
-        String fullName = "New User"; // Default name since we don't have first/last name fields
+        // Get user email (etUsername is the email field)
+        String email = etUsername.getText().toString().trim();
         
-        // Show credentials dialog
-        showCredentialsDialog(fullName, username, password);
+        // Navigate to email verification screen
+        Intent intent = new Intent(RegisterActivity.this, EmailVerificationActivity.class);
+        intent.putExtra("email", email);
+        intent.putExtra("type", "registration");
+        startActivity(intent);
+        finish();
     }
     
     private void showCredentialsDialog(String userName, String username, String password) {

@@ -48,6 +48,7 @@
         <activity android:name=".ui.activities.WelcomeActivity" android:exported="false" />
         <activity android:name=".ui.activities.LoginActivity" android:exported="false" />
         <activity android:name=".ui.activities.RegisterActivity" android:exported="false" />
+        <activity android:name=".ui.activities.EmailVerificationActivity" android:exported="false" />
         <activity android:name=".ui.activities.ForgotPasswordActivity" android:exported="false" />
         <activity android:name=".ui.activities.AdminDashboardActivity" android:exported="false" />
         <activity android:name=".ui.activities.OfficerDashboardActivity" android:exported="false" />

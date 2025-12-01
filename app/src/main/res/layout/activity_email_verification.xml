@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_secondary">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="24dp">
+
+            <!-- Back Button -->
+            <ImageView
+                android:id="@+id/btnBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="8dp"
+                android:src="@drawable/ic_arrow_back"
+                android:contentDescription="Back"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@color/white" />
+
+            <!-- Centered Email Verification Card -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/verificationCard"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/background_primary"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="8dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_max="450dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:padding="40dp">
+
+                    <!-- Email Icon -->
+                    <View
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:background="@drawable/ic_email_circle_bg" />
+
+                    <!-- Title -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="24dp"
+                        android:text="Verify Your Email"
+                        android:textColor="@color/white"
+                        android:textSize="28sp"
+                        android:textStyle="bold" />
+
+                    <!-- Subtitle -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="We sent a verification code to your email:"
+                        android:textAlignment="center"
+                        android:textColor="#94a3b8"
+                        android:textSize="14sp" />
+
+                    <!-- Email Display -->
+                    <TextView
+                        android:id="@+id/tvEmailDisplay"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="user@example.com"
+                        android:textAlignment="center"
+                        android:textColor="@color/white"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <!-- Code Input Fields Label -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="32dp"
+                        android:text="Enter 6-digit code"
+                        android:textColor="@color/white"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <!-- Code Input Fields -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:gravity="center"
+                        android:orientation="horizontal"
+                        android:spacing="8dp">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etCode1"
+                            android:layout_width="0dp"
+                            android:layout_height="60dp"
+                            android:layout_weight="1"
+                            android:layout_margin="4dp"
+                            android:background="@drawable/code_input_background"
+                            android:inputType="number"
+                            android:maxLength="1"
+                            android:textAlignment="center"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:textColorHint="#666666"
+                            android:textCursorDrawable="@drawable/cursor_blue" />
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etCode2"
+                            android:layout_width="0dp"
+                            android:layout_height="60dp"
+                            android:layout_weight="1"
+                            android:layout_margin="4dp"
+                            android:background="@drawable/code_input_background"
+                            android:inputType="number"
+                            android:maxLength="1"
+                            android:textAlignment="center"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:textColorHint="#666666"
+                            android:textCursorDrawable="@drawable/cursor_blue" />
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etCode3"
+                            android:layout_width="0dp"
+                            android:layout_height="60dp"
+                            android:layout_weight="1"
+                            android:layout_margin="4dp"
+                            android:background="@drawable/code_input_background"
+                            android:inputType="number"
+                            android:maxLength="1"
+                            android:textAlignment="center"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:textColorHint="#666666"
+                            android:textCursorDrawable="@drawable/cursor_blue" />
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etCode4"
+                            android:layout_width="0dp"
+                            android:layout_height="60dp"
+                            android:layout_weight="1"
+                            android:layout_margin="4dp"
+                            android:background="@drawable/code_input_background"
+                            android:inputType="number"
+                            android:maxLength="1"
+                            android:textAlignment="center"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:textColorHint="#666666"
+                            android:textCursorDrawable="@drawable/cursor_blue" />
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etCode5"
+                            android:layout_width="0dp"
+                            android:layout_height="60dp"
+                            android:layout_weight="1"
+                            android:layout_margin="4dp"
+                            android:background="@drawable/code_input_background"
+                            android:inputType="number"
+                            android:maxLength="1"
+                            android:textAlignment="center"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:textColorHint="#666666"
+                            android:textCursorDrawable="@drawable/cursor_blue" />
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etCode6"
+                            android:layout_width="0dp"
+                            android:layout_height="60dp"
+                            android:layout_weight="1"
+                            android:layout_margin="4dp"
+                            android:background="@drawable/code_input_background"
+                            android:inputType="number"
+                            android:maxLength="1"
+                            android:textAlignment="center"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/white"
+                            android:textColorHint="#666666"
+                            android:textCursorDrawable="@drawable/cursor_blue" />
+                    </LinearLayout>
+
+                    <!-- Timer Display -->
+                    <TextView
+                        android:id="@+id/tvTimer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="24dp"
+                        android:text="Time remaining: 4:59"
+                        android:textAlignment="center"
+                        android:textColor="#94a3b8"
+                        android:textSize="13sp" />
+
+                    <!-- Verify Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnVerifyCode"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:layout_marginTop="24dp"
+                        android:text="Verify Code"
+                        android:textAllCaps="false"
+                        android:textColor="#0f172a"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="@color/white"
+                        app:cornerRadius="12dp"
+                        app:elevation="0dp" />
+
+                    <!-- Resend Code -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Didn't receive the code? "
+                            android:textColor="#94a3b8"
+                            android:textSize="13sp" />
+
+                        <TextView
+                            android:id="@+id/tvResendCode"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Resend"
+                            android:textColor="#60a5fa"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            android:clickable="true"
+                            android:focusable="true" />
+                    </LinearLayout>
+
+                    <!-- Progress Bar -->
+                    <ProgressBar
+                        android:id="@+id/progressBar"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_marginTop="16dp"
+                        android:indeterminateTint="@color/electric_blue"
+                        android:visibility="gone" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </ScrollView>
+</FrameLayout>
