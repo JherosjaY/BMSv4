@@ -728,7 +728,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             // Hide all investigation feature buttons
             if (btnAddWitness != null) btnAddWitness.setVisibility(View.GONE);
             if (btnAddSuspect != null) btnAddSuspect.setVisibility(View.GONE);
-            if (btnAddEvidence != null) btnAddEvidence.setVisibility(View.GONE);
+            // ❌ REMOVED: btnAddEvidence - Officer focuses on user-provided evidence only
             if (btnCreateHearing != null) btnCreateHearing.setVisibility(View.GONE);
             if (btnDocumentResolution != null) btnDocumentResolution.setVisibility(View.GONE);
             if (btnKPForms != null) btnKPForms.setVisibility(View.GONE);
@@ -753,7 +753,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             // Show all investigation feature buttons
             if (btnAddWitness != null) btnAddWitness.setVisibility(View.VISIBLE);
             if (btnAddSuspect != null) btnAddSuspect.setVisibility(View.VISIBLE);
-            if (btnAddEvidence != null) btnAddEvidence.setVisibility(View.VISIBLE);
+            // ❌ REMOVED: btnAddEvidence - Officer focuses on user-provided evidence only
             if (btnCreateHearing != null) btnCreateHearing.setVisibility(View.VISIBLE);
             if (btnDocumentResolution != null) btnDocumentResolution.setVisibility(View.VISIBLE);
             if (btnKPForms != null) btnKPForms.setVisibility(View.VISIBLE);
@@ -774,7 +774,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             if (btnViewPersonHistory != null) btnViewPersonHistory.setVisibility(View.GONE);
             if (btnAddWitness != null) btnAddWitness.setVisibility(View.GONE);
             if (btnAddSuspect != null) btnAddSuspect.setVisibility(View.GONE);
-            if (btnAddEvidence != null) btnAddEvidence.setVisibility(View.GONE);
+            // ❌ REMOVED: btnAddEvidence - Officer focuses on user-provided evidence only
             if (btnCreateHearing != null) btnCreateHearing.setVisibility(View.GONE);
             if (btnDocumentResolution != null) btnDocumentResolution.setVisibility(View.GONE);
             if (btnKPForms != null) btnKPForms.setVisibility(View.GONE);
@@ -790,7 +790,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             if (btnUpdateStatus != null) btnUpdateStatus.setVisibility(View.GONE);
             if (btnAddWitness != null) btnAddWitness.setVisibility(View.GONE);
             if (btnAddSuspect != null) btnAddSuspect.setVisibility(View.GONE);
-            if (btnAddEvidence != null) btnAddEvidence.setVisibility(View.GONE);
+            // ❌ REMOVED: btnAddEvidence - Officer focuses on user-provided evidence only
             if (btnCreateHearing != null) btnCreateHearing.setVisibility(View.GONE);
             if (btnDocumentResolution != null) btnDocumentResolution.setVisibility(View.GONE);
             if (btnKPForms != null) btnKPForms.setVisibility(View.GONE);
