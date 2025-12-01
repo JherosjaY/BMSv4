@@ -162,23 +162,23 @@ public class MainActivity extends BaseActivity {
             User oldAdmin = database.userDao().getUserByUsername("admin");
             
             if (existingAdmin == null && oldAdmin == null) {
-                // Create built-in admin account with hashed password
-                String hashedPassword = hashPassword("@BMSOFFICIAL2025");
+                // Create built-in admin account with hashed password using SecurityUtils
+                String hashedPassword = com.example.blottermanagementsystem.utils.SecurityUtils.hashPassword("@BMSOFFICIAL2025");
                 User admin = new User("System", "Administrator", "official.bms.admin", hashedPassword, "Admin");
                 admin.setActive(true);
                 database.userDao().insertUser(admin);
                 android.util.Log.d("MainActivity", "✅ Default admin account created: official.bms.admin/@BMSOFFICIAL2025");
             } else if (existingAdmin == null && oldAdmin != null) {
                 // Migrate old admin account to new username
-                String hashedPassword = hashPassword("@BMSOFFICIAL2025");
+                String hashedPassword = com.example.blottermanagementsystem.utils.SecurityUtils.hashPassword("@BMSOFFICIAL2025");
                 oldAdmin.setUsername("official.bms.admin");
                 oldAdmin.setPassword(hashedPassword);
                 database.userDao().updateUser(oldAdmin);
                 android.util.Log.d("MainActivity", "✅ Admin account migrated to new username: official.bms.admin/@BMSOFFICIAL2025");
             } else {
                 // Admin account exists with new username - update password if needed
-                if (!existingAdmin.getPassword().equals(hashPassword("@BMSOFFICIAL2025"))) {
-                    String hashedPassword = hashPassword("@BMSOFFICIAL2025");
+                String hashedPassword = com.example.blottermanagementsystem.utils.SecurityUtils.hashPassword("@BMSOFFICIAL2025");
+                if (!existingAdmin.getPassword().equals(hashedPassword)) {
                     existingAdmin.setPassword(hashedPassword);
                     database.userDao().updateUser(existingAdmin);
                     android.util.Log.d("MainActivity", "✅ Admin password updated to: @BMSOFFICIAL2025");
@@ -187,25 +187,7 @@ public class MainActivity extends BaseActivity {
         });
     }
     
-    /**
-     * Hash password using SHA-256
-     */
-    private String hashPassword(String password) {
-        try {
-            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(password.getBytes("UTF-8"));
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (Exception e) {
-            android.util.Log.e("MainActivity", "Error hashing password", e);
-            return password; // Fallback to plain text (not recommended)
-        }
-    }
+    // ✅ Using SecurityUtils.hashPassword() instead of local implementation for consistency
     
     /**
      * DEBUG METHOD: Reset all flags to see the full onboarding flow
