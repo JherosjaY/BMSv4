@@ -28,7 +28,7 @@ public class OfficerMyCasesActivity extends BaseActivity {
     private BlotterReportAdapter adapter;
     private ProgressBar progressBar;
     private TextView tvTotalCases;
-    private LinearLayout emptyStateCard;
+    private androidx.cardview.widget.CardView emptyStateCard;
     private SearchView searchView;
     private ChipGroup chipGroupFilter;
     private ImageButton btnBack;
