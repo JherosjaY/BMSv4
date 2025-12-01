@@ -24,7 +24,8 @@ public class OfficerDashboardActivity extends BaseActivity {
     private TextView tvWelcomeTop, tvTotalCases, tvActiveCases, tvResolvedCases, tvPendingCases, btnProfile;
     private ImageButton btnNotifications;
     private View notificationBadge;
-    private CardView cardMyCases, cardHearings, cardExportPdf, cardExportExcel;
+    private CardView cardMyCases, cardHearings, cardExportExcel;
+    // ❌ REMOVED: cardExportPdf - PDF export removed for Officer role
     private android.widget.LinearLayout emptyState;
     private androidx.cardview.widget.CardView emptyStateCard;
     private RecyclerView recyclerRecentCases;
@@ -61,7 +62,8 @@ public class OfficerDashboardActivity extends BaseActivity {
         btnProfile = findViewById(R.id.btnProfile);
         cardMyCases = findViewById(R.id.cardMyCases);
         cardHearings = findViewById(R.id.cardHearings);
-        cardExportPdf = findViewById(R.id.cardExportPdf);
+        // ❌ REMOVED: cardExportPdf = findViewById(R.id.cardExportPdf);
+        cardExportExcel = findViewById(R.id.cardExportExcel);
         emptyState = findViewById(R.id.emptyState);
         emptyStateCard = findViewById(R.id.emptyStateCard);
         recyclerRecentCases = findViewById(R.id.recyclerRecentCases);
@@ -193,12 +195,10 @@ public class OfficerDashboardActivity extends BaseActivity {
             startActivity(intent);
         });
 
-        cardExportPdf.setOnClickListener(v -> {
-            exportToPDF();
-        });
+        // ❌ REMOVED: cardExportPdf listener - PDF export removed for Officer role
 
         if (cardExportExcel != null) {
-            findViewById(R.id.cardExportExcel).setOnClickListener(v -> {
+            cardExportExcel.setOnClickListener(v -> {
                 exportToExcel();
             });
         }
@@ -294,9 +294,7 @@ public class OfficerDashboardActivity extends BaseActivity {
         }
     }
 
-    private void exportToPDF() {
-        Toast.makeText(this, "📄 Exporting to PDF...", Toast.LENGTH_SHORT).show();
-    }
+    // ❌ REMOVED: exportToPDF() - PDF export removed for Officer role
 
     private void exportToExcel() {
         Toast.makeText(this, "📊 Exporting to Excel...", Toast.LENGTH_SHORT).show();
