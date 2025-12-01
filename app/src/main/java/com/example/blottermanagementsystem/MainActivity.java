@@ -155,23 +155,33 @@ public class MainActivity extends BaseActivity {
     
     private void createAdminAccountIfNotExists() {
         Executors.newSingleThreadExecutor().execute(() -> {
-            // Check if admin account exists
-            User existingAdmin = database.userDao().getUserByUsername("admin");
+            // Check if admin account exists (new username)
+            User existingAdmin = database.userDao().getUserByUsername("official.bms.admin");
             
-            if (existingAdmin == null) {
+            // Also check for old username for migration
+            User oldAdmin = database.userDao().getUserByUsername("admin");
+            
+            if (existingAdmin == null && oldAdmin == null) {
                 // Create built-in admin account with hashed password
                 String hashedPassword = hashPassword("BMS2025");
-                User admin = new User("System", "Administrator", "admin", hashedPassword, "Admin");
+                User admin = new User("System", "Administrator", "official.bms.admin", hashedPassword, "Admin");
                 admin.setActive(true);
                 database.userDao().insertUser(admin);
-                android.util.Log.d("MainActivity", "✅ Default admin account created: admin/BMS2025");
+                android.util.Log.d("MainActivity", "✅ Default admin account created: official.bms.admin/BMS2025");
+            } else if (existingAdmin == null && oldAdmin != null) {
+                // Migrate old admin account to new username
+                String hashedPassword = hashPassword("BMS2025");
+                oldAdmin.setUsername("official.bms.admin");
+                oldAdmin.setPassword(hashedPassword);
+                database.userDao().updateUser(oldAdmin);
+                android.util.Log.d("MainActivity", "✅ Admin account migrated to new username: official.bms.admin/BMS2025");
             } else {
-                // Update existing admin password to hashed version if it's still plain text
-                if (existingAdmin.getPassword().equals("admin123")) {
+                // Admin account exists with new username - update password if needed
+                if (!existingAdmin.getPassword().equals(hashPassword("BMS2025"))) {
                     String hashedPassword = hashPassword("BMS2025");
                     existingAdmin.setPassword(hashedPassword);
                     database.userDao().updateUser(existingAdmin);
-                    android.util.Log.d("MainActivity", "✅ Admin password updated to hashed version");
+                    android.util.Log.d("MainActivity", "✅ Admin password updated to: BMS2025");
                 }
             }
         });
