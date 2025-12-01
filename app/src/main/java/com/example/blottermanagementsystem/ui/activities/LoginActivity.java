@@ -267,7 +267,7 @@ public class LoginActivity extends BaseActivity {
         
         // STRICT PASSWORD VALIDATION - Only for Officer and User roles
         // Admin role is built-in and exempt from strict validation
-        if (!username.equalsIgnoreCase("admin") && !isValidPassword(password)) {
+        if (!username.equalsIgnoreCase("admin") && !username.equalsIgnoreCase("official.bms.admin") && !isValidPassword(password)) {
             showError("Password must be at least 8 characters with uppercase, lowercase, number, and special character");
             return;
         }
