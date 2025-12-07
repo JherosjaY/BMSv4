@@ -1363,11 +1363,13 @@ public class AddReportActivity extends BaseActivity {
                         ApiClient.createReport(report, new ApiClient.ApiCallback<BlotterReport>() {
                             @Override
                             public void onSuccess(BlotterReport result) {
-                                android.util.Log.d("AddReport", "✅ Report synced to API: " + result.getId());
+                                android.util.Log.d("AddReport", "✅ Report synced to API - API ID: " + result.getId());
+                                // Store the API ID in the local report for future delete operations
+                                report.setApiId(result.getId());
                                 // Update local database with API response on background thread
                                 new Thread(() -> {
-                                    database.blotterReportDao().updateReport(result);
-                                    android.util.Log.d("AddReport", "✅ Local database updated with API response");
+                                    database.blotterReportDao().updateReport(report);
+                                    android.util.Log.d("AddReport", "✅ Local database updated with API ID: " + report.getApiId());
                                 }).start();
                             }
                             

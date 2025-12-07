@@ -19,6 +19,7 @@ import androidx.room.PrimaryKey;
 public class BlotterReport {
     @PrimaryKey(autoGenerate = true)
     private int id;
+    private Integer apiId;  // ID from backend API (different from local ID)
     private String caseNumber;
     private String complainantName;
     private String complainantContact;
@@ -92,6 +93,9 @@ public class BlotterReport {
     // Getters and Setters
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
+
+    public Integer getApiId() { return apiId; }
+    public void setApiId(Integer apiId) { this.apiId = apiId; }
 
     public String getCaseNumber() { return caseNumber; }
     public void setCaseNumber(String caseNumber) { this.caseNumber = caseNumber; }

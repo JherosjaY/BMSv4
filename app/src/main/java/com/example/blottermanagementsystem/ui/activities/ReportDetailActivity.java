@@ -601,22 +601,26 @@ public class ReportDetailActivity extends BaseActivity {
                 
                 // ✅ Sync delete to API if online (wait for response)
                 NetworkMonitor networkMonitor = new NetworkMonitor(ReportDetailActivity.this);
-                if (networkMonitor.isNetworkAvailable() && report.getId() > 0) {
-                    Log.d("ReportDetail", "🗑️ Attempting to delete from API - Report ID: " + report.getId() + ", Case: " + report.getCaseNumber());
+                Integer apiId = report.getApiId();  // Use API ID if available
+                int deleteId = (apiId != null && apiId > 0) ? apiId : report.getId();
+                
+                if (networkMonitor.isNetworkAvailable() && deleteId > 0) {
+                    Log.d("ReportDetail", "🗑️ Attempting to delete from API - API ID: " + deleteId + ", Local ID: " + report.getId() + ", Case: " + report.getCaseNumber());
                     
                     // Use a CountDownLatch to wait for the API response
                     java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+                    final int finalDeleteId = deleteId;
                     
-                    ApiClient.deleteReport(report.getId(), new ApiClient.ApiCallback<String>() {
+                    ApiClient.deleteReport(finalDeleteId, new ApiClient.ApiCallback<String>() {
                         @Override
                         public void onSuccess(String result) {
-                            Log.d("ReportDetail", "✅ Report deleted from API: " + report.getCaseNumber() + " (ID: " + report.getId() + ")");
+                            Log.d("ReportDetail", "✅ Report deleted from API: " + report.getCaseNumber() + " (API ID: " + finalDeleteId + ")");
                             latch.countDown();
                         }
                         
                         @Override
                         public void onError(String errorMessage) {
-                            Log.w("ReportDetail", "⚠️ Failed to delete from API (ID: " + report.getId() + "): " + errorMessage);
+                            Log.w("ReportDetail", "⚠️ Failed to delete from API (API ID: " + finalDeleteId + "): " + errorMessage);
                             // Don't fail - report is already deleted locally
                             latch.countDown();
                         }
@@ -629,7 +633,7 @@ public class ReportDetailActivity extends BaseActivity {
                         Log.e("ReportDetail", "Timeout waiting for API delete response");
                     }
                 } else {
-                    Log.i("ReportDetail", "Offline mode or invalid ID - skipping API delete (ID: " + report.getId() + ")");
+                    Log.i("ReportDetail", "Offline mode or invalid ID - skipping API delete (API ID: " + apiId + ", Local ID: " + report.getId() + ")");
                 }
                 
                 // ✅ Cancel the push notification for this case
