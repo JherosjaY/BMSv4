@@ -599,21 +599,32 @@ public class ReportDetailActivity extends BaseActivity {
                 database.blotterReportDao().deleteReport(report);
                 Log.d("ReportDetail", "✅ Report deleted from local database: " + report.getCaseNumber());
                 
-                // ✅ Sync delete to API if online
+                // ✅ Sync delete to API if online (wait for response)
                 NetworkMonitor networkMonitor = new NetworkMonitor(ReportDetailActivity.this);
                 if (networkMonitor.isNetworkAvailable() && report.getId() > 0) {
+                    // Use a CountDownLatch to wait for the API response
+                    java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+                    
                     ApiClient.deleteReport(report.getId(), new ApiClient.ApiCallback<String>() {
                         @Override
                         public void onSuccess(String result) {
                             Log.d("ReportDetail", "✅ Report deleted from API: " + report.getCaseNumber());
+                            latch.countDown();
                         }
                         
                         @Override
                         public void onError(String errorMessage) {
                             Log.w("ReportDetail", "⚠️ Failed to delete from API: " + errorMessage);
-                            // Report already deleted locally, so continue
+                            latch.countDown();
                         }
                     });
+                    
+                    // Wait for API response (max 10 seconds)
+                    try {
+                        latch.await(10, java.util.concurrent.TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Log.e("ReportDetail", "Timeout waiting for API delete response");
+                    }
                 }
                 
                 // ✅ Cancel the push notification for this case
@@ -626,13 +637,13 @@ public class ReportDetailActivity extends BaseActivity {
                 
                 runOnUiThread(() -> {
                     com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    Toast.makeText(this, "Report deleted", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ReportDetailActivity.this, "Report deleted", Toast.LENGTH_SHORT).show();
                     finish();
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    Toast.makeText(this, "Error deleting report: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ReportDetailActivity.this, "Error deleting report: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
             }
         });
