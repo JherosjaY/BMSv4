@@ -59,9 +59,6 @@ public class EmailVerificationActivity extends AppCompatActivity {
         setupListeners();
         startTimer();
         
-        // For testing - set verification code (remove in production)
-        verificationCode = "123456";
-        
         // Disable verify button by default
         btnVerifyCode.setEnabled(false);
         btnVerifyCode.setAlpha(0.5f);
