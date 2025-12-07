@@ -16,7 +16,7 @@ import com.example.blottermanagementsystem.data.entity.*;
         MediationSession.class, CaseTimeline.class, CaseTemplate.class, SyncQueue.class,
         ConnectedDevice.class, LegalDocument.class, CloudinaryImage.class
     },
-    version = 19,
+    version = 20,
     exportSchema = false
 )
 public abstract class BlotterDatabase extends RoomDatabase {
