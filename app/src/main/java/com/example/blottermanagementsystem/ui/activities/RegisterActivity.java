@@ -244,16 +244,17 @@ public class RegisterActivity extends BaseActivity {
         preferencesManager.setTempEmail(email);
         preferencesManager.setTempPassword(hashPassword(password));
         
-        android.util.Log.d("RegisterActivity", "✅ Stored temp user data (NOT saved to DB yet)");
+        android.util.Log.d("RegisterActivity", "✅ Registration successful!");
         android.util.Log.d("RegisterActivity", "  Username: " + username);
         android.util.Log.d("RegisterActivity", "  Email: " + email);
         
-        // ✅ Backend sends verification code automatically during registration
-        // Navigate to email verification screen
-        Intent intent = new Intent(RegisterActivity.this, EmailVerificationActivity.class);
-        intent.putExtra("email", email);
-        intent.putExtra("type", "registration");
-        intent.putExtra("username", username);
+        // ✅ Skip email verification for now - go straight to login
+        android.widget.Toast.makeText(RegisterActivity.this, 
+            "Registration successful! Please log in.", 
+            android.widget.Toast.LENGTH_SHORT).show();
+        
+        // Navigate to login screen
+        Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
         startActivity(intent);
         finish();
     
