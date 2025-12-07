@@ -248,13 +248,32 @@ public class RegisterActivity extends BaseActivity {
         android.util.Log.d("RegisterActivity", "  Username: " + username);
         android.util.Log.d("RegisterActivity", "  Email: " + email);
         
-        // Navigate to email verification screen WITHOUT saving user
-        Intent intent = new Intent(RegisterActivity.this, EmailVerificationActivity.class);
-        intent.putExtra("email", email);
-        intent.putExtra("type", "registration");
-        intent.putExtra("username", username);
-        startActivity(intent);
-        finish();
+        // ✅ Send verification code to email BEFORE navigating
+        android.util.Log.d("RegisterActivity", "📧 Sending verification code to email...");
+        com.example.blottermanagementsystem.utils.ApiClient.sendVerificationCode(email,
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<String>() {
+                @Override
+                public void onSuccess(String result) {
+                    android.util.Log.d("RegisterActivity", "✅ Verification code sent successfully!");
+                    
+                    // Navigate to email verification screen
+                    Intent intent = new Intent(RegisterActivity.this, EmailVerificationActivity.class);
+                    intent.putExtra("email", email);
+                    intent.putExtra("type", "registration");
+                    intent.putExtra("username", username);
+                    startActivity(intent);
+                    finish();
+                }
+                
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("RegisterActivity", "❌ Failed to send verification code: " + errorMessage);
+                    android.widget.Toast.makeText(RegisterActivity.this, 
+                        "Failed to send verification code. Please try again.", 
+                        android.widget.Toast.LENGTH_SHORT).show();
+                }
+            });
+    
     }
     
     private void handleRegisterSuccess() {
