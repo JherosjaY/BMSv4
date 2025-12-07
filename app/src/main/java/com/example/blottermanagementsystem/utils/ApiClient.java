@@ -81,6 +81,84 @@ public class ApiClient {
     }
     
     /**
+     * Verify email with 6-digit code
+     */
+    public static void verifyEmail(String email, String code, ApiCallback<String> callback) {
+        try {
+            // Create request body
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("email", email);
+            body.put("code", code);
+            
+            getApiService().verifyEmail(body).enqueue(new Callback<VerifyEmailResponse>() {
+                @Override
+                public void onResponse(Call<VerifyEmailResponse> call, Response<VerifyEmailResponse> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        VerifyEmailResponse verifyResponse = response.body();
+                        if (verifyResponse.success) {
+                            Log.d(TAG, "✅ Email verified successfully");
+                            callback.onSuccess("Email verified");
+                        } else {
+                            Log.e(TAG, "❌ Email verification failed: " + verifyResponse.message);
+                            callback.onError(verifyResponse.message);
+                        }
+                    } else {
+                        Log.e(TAG, "❌ Error verifying email: " + response.code());
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                
+                @Override
+                public void onFailure(Call<VerifyEmailResponse> call, Throwable t) {
+                    Log.e(TAG, "❌ Network error: " + t.getMessage(), t);
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Exception: " + e.getMessage(), e);
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Send verification code to email
+     */
+    public static void sendVerificationCode(String email, ApiCallback<String> callback) {
+        try {
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("email", email);
+            
+            getApiService().sendVerificationCode(body).enqueue(new Callback<SendCodeResponse>() {
+                @Override
+                public void onResponse(Call<SendCodeResponse> call, Response<SendCodeResponse> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        SendCodeResponse codeResponse = response.body();
+                        if (codeResponse.success) {
+                            Log.d(TAG, "✅ Verification code sent to email");
+                            callback.onSuccess("Code sent");
+                        } else {
+                            Log.e(TAG, "❌ Failed to send code: " + codeResponse.message);
+                            callback.onError(codeResponse.message);
+                        }
+                    } else {
+                        Log.e(TAG, "❌ Error sending code: " + response.code());
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                
+                @Override
+                public void onFailure(Call<SendCodeResponse> call, Throwable t) {
+                    Log.e(TAG, "❌ Network error: " + t.getMessage(), t);
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Exception: " + e.getMessage(), e);
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+    
+    /**
      * Login user
      */
     public static void login(String username, String password, ApiCallback<LoginResponse> callback) {

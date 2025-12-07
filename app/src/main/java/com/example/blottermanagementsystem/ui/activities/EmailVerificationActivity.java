@@ -282,30 +282,47 @@ public class EmailVerificationActivity extends AppCompatActivity {
     }
 
     private void callVerifyEmailAPI(String code) {
-        // LOCAL OFFLINE VERIFICATION (No backend needed)
-        // For testing: code is "123456"
+        // ✅ Call backend API to verify email with 6-digit code
+        android.util.Log.d("EmailVerification", "🔐 Verifying email with code: " + code);
         
-        // Simulate API call delay
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-            // Check if entered code matches verification code
-            if (code.equals(verificationCode)) {
-                showLoading(false);
-                Toast.makeText(this, "Email verified successfully!", Toast.LENGTH_SHORT).show();
+        // Check network availability
+        com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+            new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
+        
+        if (!networkMonitor.isNetworkAvailable()) {
+            android.util.Log.w("EmailVerification", "⚠️ No network available");
+            showLoading(false);
+            Toast.makeText(this, "No internet connection. Please check your network.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Call backend API
+        com.example.blottermanagementsystem.utils.ApiClient.verifyEmail(userEmail, code,
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<String>() {
+                @Override
+                public void onSuccess(String result) {
+                    android.util.Log.d("EmailVerification", "✅ Email verified successfully!");
+                    showLoading(false);
+                    Toast.makeText(EmailVerificationActivity.this, "Email verified successfully!", Toast.LENGTH_SHORT).show();
+                    
+                    // Navigate based on verification type
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        if ("registration".equals(verificationType)) {
+                            autoLogin();
+                        } else if ("reset_password".equals(verificationType)) {
+                            navigateToResetPassword();
+                        }
+                    }, 1500);
+                }
                 
-                // Navigate based on verification type
-                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                    if ("registration".equals(verificationType)) {
-                        autoLogin();
-                    } else if ("reset_password".equals(verificationType)) {
-                        navigateToResetPassword();
-                    }
-                }, 1500);
-            } else {
-                showLoading(false);
-                Toast.makeText(this, "Invalid verification code. Please try again.", Toast.LENGTH_SHORT).show();
-                clearAllFields();
-            }
-        }, 1000); // 1 second delay to simulate API call
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("EmailVerification", "❌ Verification failed: " + errorMessage);
+                    showLoading(false);
+                    Toast.makeText(EmailVerificationActivity.this, "Invalid verification code. Please try again.", Toast.LENGTH_SHORT).show();
+                    clearAllFields();
+                }
+            });
     }
 
     private void autoLogin() {

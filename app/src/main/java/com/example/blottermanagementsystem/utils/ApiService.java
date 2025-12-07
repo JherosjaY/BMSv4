@@ -22,6 +22,20 @@ public interface ApiService {
     // ============ AUTH ============
     
     /**
+     * Send verification code to email
+     * POST /api/auth/send-verification-code
+     */
+    @POST("api/auth/send-verification-code")
+    Call<SendCodeResponse> sendVerificationCode(@Body java.util.Map<String, String> body);
+    
+    /**
+     * Verify email with 6-digit code
+     * POST /api/auth/verify-email
+     */
+    @POST("api/auth/verify-email")
+    Call<VerifyEmailResponse> verifyEmail(@Body java.util.Map<String, String> body);
+    
+    /**
      * Login user
      * POST /api/auth/login
      */
@@ -280,4 +294,14 @@ class RegisterResponse {
         public User user;
         public String token;
     }
+}
+
+class SendCodeResponse {
+    public boolean success;
+    public String message;
+}
+
+class VerifyEmailResponse {
+    public boolean success;
+    public String message;
 }
