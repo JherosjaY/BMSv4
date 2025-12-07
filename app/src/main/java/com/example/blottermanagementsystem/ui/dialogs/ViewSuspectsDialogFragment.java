@@ -16,7 +16,6 @@ import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Suspect;
 import com.example.blottermanagementsystem.ui.adapters.SuspectListAdapter;
-import com.google.android.material.card.MaterialCardView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +26,6 @@ public class ViewSuspectsDialogFragment extends DialogFragment {
     private int reportId;
     private RecyclerView rvSuspectList;
     private TextView tvEmptyState;
-    private MaterialCardView cardContainer;
     private SuspectListAdapter adapter;
     private List<Suspect> suspectList = new ArrayList<>();
     
@@ -42,9 +40,18 @@ public class ViewSuspectsDialogFragment extends DialogFragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Material_Dialog_MinWidth);
+        setStyle(DialogFragment.STYLE_NO_FRAME, android.R.style.Theme_Material_Dialog_MinWidth);
         if (getArguments() != null) {
             reportId = getArguments().getInt("report_id");
+        }
+    }
+    
+    @Override
+    public void onStart() {
+        super.onStart();
+        // ✅ Set dim effect (0.5f = 50% dim, looks nice)
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setDimAmount(0.5f);
         }
     }
     
@@ -62,7 +69,6 @@ public class ViewSuspectsDialogFragment extends DialogFragment {
     }
     
     private void initViews(View view) {
-        cardContainer = view.findViewById(R.id.cardSuspectContainer);
         rvSuspectList = view.findViewById(R.id.rvSuspectList);
         tvEmptyState = view.findViewById(R.id.tvEmptyState);
         

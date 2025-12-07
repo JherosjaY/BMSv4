@@ -98,18 +98,75 @@ public class MainActivity extends BaseActivity {
                 startActivity(new Intent(this, com.example.blottermanagementsystem.ui.activities.WelcomeActivity.class));
                 finish();
             } else {
-                // User role - check if profile picture selected
-                if (!preferencesManager.hasSelectedProfilePicture()) {
-                    android.util.Log.d("MainActivity", "🖼️ USER ROLE - PROFILE PICTURE NOT SELECTED - Going to ProfilePictureSelectionActivity");
-                    startActivity(new Intent(this, ProfilePictureSelectionActivity.class));
-                    finish();
-                } else {
-                    android.util.Log.d("MainActivity", "✅ USER ROLE - PROFILE PICTURE SELECTED - Going to UserDashboard");
-                    startActivity(new Intent(this, UserDashboardActivity.class));
-                    finish();
-                }
+                // User role - check if profile is completed in database
+                android.util.Log.d("MainActivity", "👤 USER ROLE - Checking profile completion status...");
+                checkProfileCompletionAndNavigate();
             }
         }
+    }
+    
+    // ✅ NEW METHOD: Check profile completion status from database
+    private void checkProfileCompletionAndNavigate() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                int userId = preferencesManager.getUserId();
+                android.util.Log.d("MainActivity", "🔍 Checking profile for userId: " + userId);
+                
+                User user = database.userDao().getUserById(userId);
+                
+                if (user == null) {
+                    android.util.Log.e("MainActivity", "❌ User not found in database!");
+                    runOnUiThread(() -> {
+                        startActivity(new Intent(this, com.example.blottermanagementsystem.ui.activities.WelcomeActivity.class));
+                        finish();
+                    });
+                    return;
+                }
+                
+                // ✅ Check if profile is completed in database
+                boolean isProfileCompleted = user.isProfileCompleted();
+                String firstName = user.getFirstName();
+                String lastName = user.getLastName();
+                String profilePhotoUri = user.getProfilePhotoUri();
+                
+                android.util.Log.d("MainActivity", "📋 Profile Status:");
+                android.util.Log.d("MainActivity", "   - isProfileCompleted: " + isProfileCompleted);
+                android.util.Log.d("MainActivity", "   - FirstName: " + firstName);
+                android.util.Log.d("MainActivity", "   - LastName: " + lastName);
+                android.util.Log.d("MainActivity", "   - ProfilePhotoUri: " + (profilePhotoUri != null ? "✅ Set" : "❌ Not set"));
+                
+                // Update preferences to match database state
+                if (isProfileCompleted) {
+                    preferencesManager.setHasSelectedProfilePicture(true);
+                    preferencesManager.setFirstName(firstName);
+                    preferencesManager.setLastName(lastName);
+                    android.util.Log.d("MainActivity", "✅ Profile is completed - syncing to preferences");
+                }
+                
+                // Navigate on UI thread
+                runOnUiThread(() -> {
+                    Intent intent;
+                    if (!isProfileCompleted) {
+                        android.util.Log.d("MainActivity", "🖼️ PROFILE NOT COMPLETED - Going to ProfilePictureSelectionActivity");
+                        intent = new Intent(this, ProfilePictureSelectionActivity.class);
+                        intent.putExtra("USER_ID", userId);  // Pass userId to ensure it's available
+                    } else {
+                        android.util.Log.d("MainActivity", "✅ PROFILE COMPLETED - Going to UserDashboardActivity");
+                        intent = new Intent(this, UserDashboardActivity.class);
+                    }
+                    startActivity(intent);
+                    finish();
+                });
+            } catch (Exception e) {
+                android.util.Log.e("MainActivity", "Error checking profile completion: " + e.getMessage());
+                e.printStackTrace();
+                // Fallback: go to dashboard
+                runOnUiThread(() -> {
+                    startActivity(new Intent(this, UserDashboardActivity.class));
+                    finish();
+                });
+            }
+        });
     }
     
     private void checkProfilePictureAndNavigate() {

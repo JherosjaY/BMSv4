@@ -20,10 +20,19 @@ public class HearingListAdapter extends RecyclerView.Adapter<HearingListAdapter.
     
     private List<Hearing> hearingList;
     private boolean isReadOnly;
+    private OnEditHearingListener editListener;
+    
+    public interface OnEditHearingListener {
+        void onEditHearing(Hearing hearing);
+    }
     
     public HearingListAdapter(List<Hearing> hearingList, boolean isReadOnly) {
         this.hearingList = hearingList;
         this.isReadOnly = isReadOnly;
+    }
+    
+    public void setEditListener(OnEditHearingListener listener) {
+        this.editListener = listener;
     }
     
     @NonNull

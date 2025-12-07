@@ -70,7 +70,7 @@ public class InvestigationStepAdapter extends RecyclerView.Adapter<Investigation
         holder.tvStepTitle.setText(step.getTitle());
         holder.tvStepDescription.setText(step.getDescription());
         
-        // Update status indicator
+        // Update status indicator with icons (checkmarks, hourglasses, circles)
         if (step.isCompleted()) {
             // ✓ Completed - Green checkmark
             holder.ivStatus.setImageResource(R.drawable.ic_check_circle);
@@ -111,19 +111,36 @@ public class InvestigationStepAdapter extends RecyclerView.Adapter<Investigation
                     holder.btnAction.setText(step.getActionText());
                     holder.btnAction.setIconResource(step.getActionIcon());
                     
-                    // ✅ Check if button is enabled (based on previous steps)
-                    if (step.isEnabled()) {
+                    // ✅ Check if button is enabled (based on investigation started AND previous steps)
+                    if (isInvestigationStarted && step.isEnabled()) {
+                        // ✅ ENABLED: Filled blue background
                         holder.btnAction.setEnabled(true);
                         holder.btnAction.setAlpha(1.0f);
+                        holder.btnAction.setBackgroundColor(holder.itemView.getContext()
+                                .getColor(R.color.electric_blue));
+                        holder.btnAction.setTextColor(holder.itemView.getContext()
+                                .getColor(android.R.color.white));
+                        holder.btnAction.setIconTint(android.content.res.ColorStateList.valueOf(
+                                holder.itemView.getContext().getColor(android.R.color.white)));
+                        holder.btnAction.setStrokeWidth(0);  // No outline when filled
                         holder.btnAction.setOnClickListener(v -> {
                             if (listener != null) {
                                 listener.onStepAction(step);
                             }
                         });
                     } else {
-                        // ❌ Button disabled - show why
+                        // ❌ DISABLED: Outline blue (dimmed)
                         holder.btnAction.setEnabled(false);
-                        holder.btnAction.setAlpha(0.5f);
+                        holder.btnAction.setAlpha(0.6f);
+                        holder.btnAction.setBackgroundColor(holder.itemView.getContext()
+                                .getColor(android.R.color.transparent));
+                        holder.btnAction.setTextColor(holder.itemView.getContext()
+                                .getColor(R.color.electric_blue));
+                        holder.btnAction.setIconTint(android.content.res.ColorStateList.valueOf(
+                                holder.itemView.getContext().getColor(R.color.electric_blue)));
+                        holder.btnAction.setStrokeWidth(2);  // Outline stroke
+                        holder.btnAction.setStrokeColor(android.content.res.ColorStateList.valueOf(
+                                holder.itemView.getContext().getColor(R.color.electric_blue)));
                         holder.btnAction.setOnClickListener(v -> {
                             android.widget.Toast.makeText(
                                 holder.itemView.getContext(),

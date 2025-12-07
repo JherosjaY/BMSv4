@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import com.bumptech.glide.Glide;
 import com.example.blottermanagementsystem.R;
+import com.example.blottermanagementsystem.data.entity.User;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
 import com.example.blottermanagementsystem.utils.PermissionHelper;
 import com.google.android.material.button.MaterialButton;
@@ -360,18 +361,93 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
         });
         
         btnSkip.setOnClickListener(v -> {
-            // Skip profile picture selection - use default
+            // ✅ FIXED: Validate firstname and lastname BEFORE allowing skip
+            final String firstName = etFirstName.getText().toString().trim();
+            final String lastName = etLastName.getText().toString().trim();
+            
+            android.util.Log.d("ProfilePictureSelection", "=== SKIP BUTTON CLICKED ===");
+            android.util.Log.d("ProfilePictureSelection", "FirstName: '" + firstName + "'");
+            android.util.Log.d("ProfilePictureSelection", "LastName: '" + lastName + "'");
+            android.util.Log.d("ProfilePictureSelection", "Image selected: " + (selectedImageUri != null));
+            
+            // ✅ STRICT: FirstName and LastName are MANDATORY
+            if (firstName.isEmpty() || lastName.isEmpty()) {
+                Toast.makeText(this, "First name and last name are required", Toast.LENGTH_SHORT).show();
+                android.util.Log.w("ProfilePictureSelection", "⚠️ User tried to skip without entering names!");
+                return;
+            }
+            
+            // ✅ Can only skip if picture is taken/imported (selectedImageUri is not null)
+            if (selectedImageUri == null) {
+                Toast.makeText(this, "Please take or import a photo before skipping", Toast.LENGTH_SHORT).show();
+                android.util.Log.w("ProfilePictureSelection", "⚠️ User tried to skip without selecting a picture!");
+                return;
+            }
+            
+            // ✅ All validations passed - proceed with skip
+            android.util.Log.d("ProfilePictureSelection", "✅ Skip validation passed - proceeding");
             preferencesManager.setHasSelectedPfp(false);
-            navigateToDashboard();
+            
+            // Update user in database with names and picture
+            int userIdTemp = preferencesManager.getUserId();
+            if (userIdTemp == -1) {
+                int userIdFromIntent = getIntent().getIntExtra("USER_ID", -1);
+                if (userIdFromIntent != -1) {
+                    userIdTemp = userIdFromIntent;
+                    preferencesManager.setUserId(userIdTemp);
+                }
+            }
+            
+            final int userId = userIdTemp;
+            
+            if (userId != -1) {
+                Executors.newSingleThreadExecutor().execute(() -> {
+                    com.example.blottermanagementsystem.data.database.BlotterDatabase database = 
+                        com.example.blottermanagementsystem.data.database.BlotterDatabase.getDatabase(this);
+                    com.example.blottermanagementsystem.data.entity.User user = database.userDao().getUserById(userId);
+                    
+                    if (user != null) {
+                        user.setFirstName(firstName);
+                        user.setLastName(lastName);
+                        
+                        if (selectedImageUri != null) {
+                            String uriString = selectedImageUri.toString();
+                            user.setProfilePhotoUri(uriString);
+                            android.util.Log.d("ProfilePictureSelection", "✅ Setting profile URI: " + uriString);
+                        }
+                        
+                        user.setProfileCompleted(true);
+                        database.userDao().updateUser(user);
+                        android.util.Log.d("ProfilePictureSelection", "✅ Updated user in database (skip flow)");
+                        
+                        preferencesManager.setFirstName(firstName);
+                        preferencesManager.setLastName(lastName);
+                        
+                        runOnUiThread(() -> navigateToDashboard());
+                    } else {
+                        android.util.Log.e("ProfilePictureSelection", "❌ User not found in database!");
+                        runOnUiThread(() -> navigateToDashboard());
+                    }
+                });
+            } else {
+                navigateToDashboard();
+            }
         });
         
         btnContinue.setOnClickListener(v -> {
             // Validate name fields
-            String firstName = etFirstName.getText().toString().trim();
-            String lastName = etLastName.getText().toString().trim();
+            final String firstName = etFirstName.getText().toString().trim();
+            final String lastName = etLastName.getText().toString().trim();
+            
+            android.util.Log.d("ProfilePictureSelection", "=== CONTINUE BUTTON CLICKED ===");
+            android.util.Log.d("ProfilePictureSelection", "FirstName input: '" + firstName + "'");
+            android.util.Log.d("ProfilePictureSelection", "LastName input: '" + lastName + "'");
+            android.util.Log.d("ProfilePictureSelection", "FirstName empty? " + firstName.isEmpty());
+            android.util.Log.d("ProfilePictureSelection", "LastName empty? " + lastName.isEmpty());
             
             if (firstName.isEmpty() || lastName.isEmpty()) {
                 Toast.makeText(this, "Please enter your first and last name", Toast.LENGTH_SHORT).show();
+                android.util.Log.w("ProfilePictureSelection", "⚠️ User tried to continue without entering names!");
                 return;
             }
             
@@ -432,6 +508,10 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
                     android.util.Log.d("ProfilePictureSelection", "User found: " + (user != null));
                     
                     if (user != null) {
+                        android.util.Log.d("ProfilePictureSelection", "🔧 SETTING USER DATA:");
+                        android.util.Log.d("ProfilePictureSelection", "  FirstName: '" + firstName + "'");
+                        android.util.Log.d("ProfilePictureSelection", "  LastName: '" + lastName + "'");
+                        
                         user.setFirstName(firstName);
                         user.setLastName(lastName);
                         
@@ -450,6 +530,15 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
                         
                         database.userDao().updateUser(user);
                         android.util.Log.d("ProfilePictureSelection", "✅ Updated user in database: " + firstName + " " + lastName);
+                        
+                        // VERIFY the save
+                        User verifyAfterSave = database.userDao().getUserById(userId);
+                        if (verifyAfterSave != null) {
+                            android.util.Log.d("ProfilePictureSelection", "✅ VERIFY AFTER SAVE:");
+                            android.util.Log.d("ProfilePictureSelection", "  FirstName in DB: '" + verifyAfterSave.getFirstName() + "'");
+                            android.util.Log.d("ProfilePictureSelection", "  LastName in DB: '" + verifyAfterSave.getLastName() + "'");
+                            android.util.Log.d("ProfilePictureSelection", "  ProfilePhotoUri in DB: '" + verifyAfterSave.getProfilePhotoUri() + "'");
+                        }
                         
                         // Update PreferencesManager AFTER database update
                         preferencesManager.setFirstName(firstName);

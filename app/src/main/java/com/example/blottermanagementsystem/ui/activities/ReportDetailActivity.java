@@ -31,10 +31,13 @@ import com.example.blottermanagementsystem.utils.ApiClient;
 import com.example.blottermanagementsystem.utils.NetworkMonitor;
 import com.example.blottermanagementsystem.utils.TimelineUpdateManager;
 import com.example.blottermanagementsystem.utils.GlobalLoadingManager;
+import com.example.blottermanagementsystem.utils.CaseEventNotificationHelper;
 import com.example.blottermanagementsystem.data.entity.Evidence;
 import android.util.Log;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import java.util.ArrayList;
@@ -592,7 +595,16 @@ public class ReportDetailActivity extends BaseActivity {
         
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
+                // ✅ Delete the case from database
                 database.blotterReportDao().deleteReport(report);
+                
+                // ✅ Cancel the push notification for this case
+                android.app.NotificationManager notificationManager = 
+                    (android.app.NotificationManager) getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+                if (notificationManager != null) {
+                    notificationManager.cancel(report.getId() + 2000);  // Same ID used in CaseEventNotificationHelper
+                    Log.i("ReportDetail", "✅ Notification cancelled for case " + report.getCaseNumber());
+                }
                 
                 runOnUiThread(() -> {
                     com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
@@ -802,6 +814,7 @@ public class ReportDetailActivity extends BaseActivity {
         
         tvReportNumber.setText(report.getCaseNumber());
         chipStatus.setText(report.getStatus());
+        setStatusChipColor(report.getStatus());
         
         // Display Assigned Officers
         displayAssignedOfficers();
@@ -1038,12 +1051,13 @@ public class ReportDetailActivity extends BaseActivity {
             investigationSteps.add(step2);
             
             // Step 3: Investigation Started
-            // ✅ Check if investigation has started (case status is ONGOING)
+            // ✅ Check if investigation has started (case status is ONGOING, IN PROGRESS, or RESOLVED)
             InvestigationStep step3 = new InvestigationStep("3", "Investigation Started", "Officer begins investigation", "investigation_started");
             boolean isInvestigationStarted = report != null && 
                 report.getStatus() != null && 
                 (report.getStatus().equalsIgnoreCase("ONGOING") || 
-                 report.getStatus().equalsIgnoreCase("IN PROGRESS"));
+                 report.getStatus().equalsIgnoreCase("IN PROGRESS") ||
+                 report.getStatus().equalsIgnoreCase("RESOLVED"));
             
             step3.setCompleted(false);
             if (isInvestigationStarted) {
@@ -1062,25 +1076,25 @@ public class ReportDetailActivity extends BaseActivity {
             }
             investigationSteps.add(step3);
             
-            // Step 4: Witnesses & Evidence Collected
-            // ✅ Check if witness, suspect, AND evidence all exist
-            InvestigationStep step4 = new InvestigationStep("4", "Witnesses & Evidence Collected", "Gathering case information", "evidence_collected");
+            // Step 4: Witnesses & Suspects
+            // ✅ Check if witness AND suspect both exist
+            InvestigationStep step4 = new InvestigationStep("4", "Witnesses & Suspects", "Gathering case information", "evidence_collected");
             int witnessCount = database.witnessDao().getWitnessCountByReport(reportId);
             int suspectCount = database.suspectDao().getSuspectCountByReport(reportId);
             int evidenceCount = database.evidenceDao().getEvidenceCountByReport(reportId);
             
-            if (witnessCount > 0 && suspectCount > 0 && evidenceCount > 0) {
-                // All 3 collected - COMPLETED
+            if (witnessCount > 0 && suspectCount > 0) {
+                // Both witness and suspect collected - COMPLETED
                 step4.setCompleted(true);
                 step4.setInProgress(false);
-                android.util.Log.d("ReportDetail", "✅ Step 4: COMPLETED (all witness, suspect, evidence present)");
-            } else if (isInvestigationStarted) {
-                // Investigation started - show as IN PROGRESS (hourglass - current active step)
+                android.util.Log.d("ReportDetail", "✅ Step 4: COMPLETED (witness and suspect present)");
+            } else if (witnessCount > 0 || suspectCount > 0) {
+                // At least one collected - show as IN PROGRESS (hourglass - current active step)
                 step4.setCompleted(false);
                 step4.setInProgress(true);
-                android.util.Log.d("ReportDetail", "⏳ Step 4: IN PROGRESS (collecting W:" + witnessCount + " S:" + suspectCount + " E:" + evidenceCount + ")");
+                android.util.Log.d("ReportDetail", "⏳ Step 4: IN PROGRESS (collecting W:" + witnessCount + " S:" + suspectCount + ")");
             } else {
-                // Investigation not started - PENDING
+                // Neither collected - PENDING
                 step4.setCompleted(false);
                 step4.setInProgress(false);
                 android.util.Log.d("ReportDetail", "⭕ Step 4: PENDING");
@@ -1266,31 +1280,19 @@ public class ReportDetailActivity extends BaseActivity {
     
     /**
      * Set the status chip color based on the status value
-     * Color coding: Pending/Assigned = Blue, Ongoing = Yellow, Resolved = Green
+     * Color coding: All statuses = Blue, except Resolved/Closed = Green
      */
     private void setStatusChipColor(String status) {
-        if (chipStatus == null) return;
+        if (chipStatus == null || status == null) return;
         
         int backgroundColor;
-        switch (status) {
-            case "Pending":
-            case "Assigned":
-                // 🔵 Pending/Assigned - Electric Blue
-                backgroundColor = getColor(R.color.electric_blue);
-                break;
-            case "Ongoing":
-            case "Under Investigation":
-                // 🟡 Ongoing - Yellow
-                backgroundColor = getColor(R.color.warning_yellow);
-                break;
-            case "Resolved":
-            case "Closed":
-                // 🟢 Resolved - Green
-                backgroundColor = getColor(R.color.success_green);
-                break;
-            default:
-                // ⚪ Unknown - Gray
-                backgroundColor = getColor(R.color.text_secondary);
+        // All statuses are blue except Resolved/Closed which are green
+        if ("resolved".equalsIgnoreCase(status) || "closed".equalsIgnoreCase(status)) {
+            // 🟢 Resolved - Green
+            backgroundColor = getColor(R.color.success_green);
+        } else {
+            // 🔵 All other statuses - Electric Blue
+            backgroundColor = getColor(R.color.electric_blue);
         }
         
         chipStatus.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(backgroundColor));
@@ -1583,4 +1585,5 @@ public class ReportDetailActivity extends BaseActivity {
         Intent chooser = Intent.createChooser(shareIntent, "Share PDF Report via:");
         startActivity(chooser);
     }
+    
 }

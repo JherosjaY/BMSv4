@@ -97,6 +97,7 @@ dependencies {
     
     // ML Kit for QR Scanning (HEAVY - adds ~5MB)
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
+    implementation("com.google.mlkit:vision-common:17.3.0")
     
     // WorkManager for Background Tasks
     implementation("androidx.work:work-runtime:2.9.0")

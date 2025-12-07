@@ -11,6 +11,8 @@ import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.AutoCompleteTextView;
+import android.widget.ArrayAdapter;
 import androidx.appcompat.widget.Toolbar;
 import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -123,8 +125,10 @@ public class AdminReportOversightActivity extends BaseActivity {
     }
     
     private void setupListeners() {
-        // Search functionality
+        // Search functionality with suggestions
         if (etSearch != null) {
+            setupSearchSuggestions();
+            
             etSearch.addTextChangedListener(new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -133,6 +137,7 @@ public class AdminReportOversightActivity extends BaseActivity {
                 public void onTextChanged(CharSequence s, int start, int before, int count) {
                     searchQuery = s.toString().toLowerCase();
                     filterReports();
+                    updateSearchSuggestions(s.toString());
                 }
                 
                 @Override
@@ -412,5 +417,66 @@ public class AdminReportOversightActivity extends BaseActivity {
     protected void onResume() {
         super.onResume();
         loadReports();
+    }
+    
+    // ✅ Setup search suggestions
+    private void setupSearchSuggestions() {
+        if (!(etSearch instanceof AutoCompleteTextView)) {
+            return;
+        }
+        
+        AutoCompleteTextView autoCompleteTextView = (AutoCompleteTextView) etSearch;
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+            this,
+            android.R.layout.simple_dropdown_item_1line,
+            new ArrayList<>()
+        );
+        autoCompleteTextView.setAdapter(adapter);
+        autoCompleteTextView.setThreshold(1);  // Show suggestions after 1 character
+    }
+    
+    // ✅ Update search suggestions based on user input
+    private void updateSearchSuggestions(String query) {
+        if (!(etSearch instanceof AutoCompleteTextView)) {
+            return;
+        }
+        
+        AutoCompleteTextView autoCompleteTextView = (AutoCompleteTextView) etSearch;
+        ArrayAdapter<String> adapter = (ArrayAdapter<String>) autoCompleteTextView.getAdapter();
+        
+        if (adapter == null) {
+            return;
+        }
+        
+        adapter.clear();
+        
+        if (query.isEmpty()) {
+            return;
+        }
+        
+        String queryLower = query.toLowerCase();
+        java.util.Set<String> suggestions = new java.util.HashSet<>();
+        
+        // Generate suggestions from current reports
+        for (BlotterReport report : allReports) {
+            // Add case number suggestions
+            if (report.getCaseNumber() != null && report.getCaseNumber().toLowerCase().contains(queryLower)) {
+                suggestions.add(report.getCaseNumber());
+            }
+            
+            // Add incident type suggestions
+            if (report.getIncidentType() != null && report.getIncidentType().toLowerCase().contains(queryLower)) {
+                suggestions.add(report.getIncidentType());
+            }
+            
+            // Add complainant name suggestions
+            if (report.getComplainantName() != null && report.getComplainantName().toLowerCase().contains(queryLower)) {
+                suggestions.add(report.getComplainantName());
+            }
+        }
+        
+        // Add suggestions to adapter
+        adapter.addAll(new java.util.ArrayList<>(suggestions));
+        adapter.notifyDataSetChanged();
     }
 }

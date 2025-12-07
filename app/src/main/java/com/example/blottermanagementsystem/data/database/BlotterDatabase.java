@@ -12,11 +12,11 @@ import com.example.blottermanagementsystem.data.entity.*;
         User.class, BlotterReport.class, Suspect.class, Witness.class, Evidence.class,
         Hearing.class, StatusHistory.class, Resolution.class, Officer.class, InvestigationTask.class,
         Notification.class, Status.class, Person.class, Respondent.class, PersonHistory.class,
-        SmsNotification.class, RespondentStatement.class, Summons.class, KPForm.class,
+        SmsNotification.class, RespondentStatement.class, Summons.class,
         MediationSession.class, CaseTimeline.class, CaseTemplate.class, SyncQueue.class,
         ConnectedDevice.class, LegalDocument.class, CloudinaryImage.class
     },
-    version = 14,
+    version = 19,
     exportSchema = false
 )
 public abstract class BlotterDatabase extends RoomDatabase {
@@ -38,7 +38,6 @@ public abstract class BlotterDatabase extends RoomDatabase {
     public abstract SmsNotificationDao smsNotificationDao();
     public abstract RespondentStatementDao respondentStatementDao();
     public abstract SummonsDao summonsDao();
-    public abstract KPFormDao kpFormDao();
     public abstract MediationSessionDao mediationSessionDao();
     public abstract CaseTimelineDao caseTimelineDao();
     public abstract CaseTemplateDao caseTemplateDao();

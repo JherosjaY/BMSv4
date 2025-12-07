@@ -138,19 +138,19 @@ public class SendNotificationActivity extends BaseActivity {
                     
                     int finalCount = recipients.size();
                     runOnUiThread(() -> {
-                        Toast.makeText(this, "✅ Notification sent to " + finalCount + " recipient(s)!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Notification sent to " + finalCount + " recipient(s)", Toast.LENGTH_SHORT).show();
                         finish();
                     });
                 } else {
                     runOnUiThread(() -> {
-                        Toast.makeText(this, "❌ No recipients selected", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "No recipients selected", Toast.LENGTH_SHORT).show();
                         btnSendNotification.setEnabled(true);
                         btnSendNotification.setText("Send Notification");
                     });
                 }
             } catch (Exception e) {
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "❌ Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     btnSendNotification.setEnabled(true);
                     btnSendNotification.setText("Send Notification");
                 });
@@ -197,6 +197,7 @@ public class SendNotificationActivity extends BaseActivity {
                             android.widget.CheckBox checkbox = itemView.findViewById(R.id.checkbox);
                             android.widget.TextView userName = itemView.findViewById(R.id.userName);
                             android.widget.TextView userEmail = itemView.findViewById(R.id.userEmail);
+                            android.widget.TextView checkmarkIcon = itemView.findViewById(R.id.checkmarkIcon);
                             
                             // Set user info
                             String fullName = (user.getFirstName() != null ? user.getFirstName() : "") + " " + 
@@ -213,6 +214,7 @@ public class SendNotificationActivity extends BaseActivity {
                                 }
                             }
                             checkbox.setChecked(isSelected);
+                            checkmarkIcon.setVisibility(isSelected ? android.view.View.VISIBLE : android.view.View.GONE);
                             
                             // Handle checkbox change
                             checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -220,14 +222,24 @@ public class SendNotificationActivity extends BaseActivity {
                                     if (!selectedUsers.contains(user)) {
                                         selectedUsers.add(user);
                                     }
+                                    checkmarkIcon.setVisibility(android.view.View.VISIBLE);
                                 } else {
                                     selectedUsers.remove(user);
+                                    checkmarkIcon.setVisibility(android.view.View.GONE);
                                 }
                                 btnSelect.setText("Select (" + selectedUsers.size() + ")");
                             });
                             
-                            // Handle row click to toggle checkbox
+                            // Handle row click to toggle checkbox - works on name/email too
                             itemView.setOnClickListener(v -> {
+                                checkbox.setChecked(!checkbox.isChecked());
+                            });
+                            
+                            // Also make the text areas clickable
+                            userName.setOnClickListener(v -> {
+                                checkbox.setChecked(!checkbox.isChecked());
+                            });
+                            userEmail.setOnClickListener(v -> {
                                 checkbox.setChecked(!checkbox.isChecked());
                             });
                             
@@ -300,6 +312,7 @@ public class SendNotificationActivity extends BaseActivity {
                             android.widget.CheckBox checkbox = itemView.findViewById(R.id.checkbox);
                             android.widget.TextView userName = itemView.findViewById(R.id.userName);
                             android.widget.TextView userEmail = itemView.findViewById(R.id.userEmail);
+                            android.widget.TextView checkmarkIcon = itemView.findViewById(R.id.checkmarkIcon);
                             
                             // Set officer info
                             userName.setText(officer.getName() != null ? officer.getName() : "Officer " + officer.getId());
@@ -323,6 +336,7 @@ public class SendNotificationActivity extends BaseActivity {
                                 }
                             }
                             checkbox.setChecked(isSelected);
+                            checkmarkIcon.setVisibility(isSelected ? android.view.View.VISIBLE : android.view.View.GONE);
                             
                             // Handle checkbox change
                             checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -330,14 +344,24 @@ public class SendNotificationActivity extends BaseActivity {
                                     if (!selectedOfficers.contains(officer)) {
                                         selectedOfficers.add(officer);
                                     }
+                                    checkmarkIcon.setVisibility(android.view.View.VISIBLE);
                                 } else {
                                     selectedOfficers.remove(officer);
+                                    checkmarkIcon.setVisibility(android.view.View.GONE);
                                 }
                                 btnSelect.setText("Select (" + selectedOfficers.size() + ")");
                             });
                             
-                            // Handle row click to toggle checkbox
+                            // Handle row click to toggle checkbox - works on name/email too
                             itemView.setOnClickListener(v -> {
+                                checkbox.setChecked(!checkbox.isChecked());
+                            });
+                            
+                            // Also make the text areas clickable
+                            userName.setOnClickListener(v -> {
+                                checkbox.setChecked(!checkbox.isChecked());
+                            });
+                            userEmail.setOnClickListener(v -> {
                                 checkbox.setChecked(!checkbox.isChecked());
                             });
                             

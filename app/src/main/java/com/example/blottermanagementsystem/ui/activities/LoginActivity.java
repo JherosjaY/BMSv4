@@ -116,63 +116,76 @@ public class LoginActivity extends BaseActivity {
             // Save Google account info
             preferencesManager.saveGoogleAccountInfo(email, displayName, photoUrl);
             
-            // Check if user exists in database
+            // ✅ SEPARATE WORKFLOW: Check if email already registered
             java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
                 com.example.blottermanagementsystem.data.database.BlotterDatabase database = 
                     com.example.blottermanagementsystem.data.database.BlotterDatabase.getDatabase(this);
-                com.example.blottermanagementsystem.data.entity.User existingUser = 
-                    database.userDao().getUserByUsername(username);
+                
+                // ✅ Check if email exists in database
+                com.example.blottermanagementsystem.data.entity.User existingUserByEmail = 
+                    database.userDao().getUserByEmail(email);
+                
+                // ✅ Use final variable for lambda
+                final com.example.blottermanagementsystem.data.entity.User finalUserByEmail = existingUserByEmail;
                 
                 runOnUiThread(() -> {
-                    if (existingUser != null) {
-                        // User exists - LOGIN
-                        android.util.Log.d("LoginActivity", "Google user exists, logging in: " + email);
+                    if (finalUserByEmail != null) {
+                        // ✅ Email exists - Check how it was registered
+                        String authMethod = finalUserByEmail.getAuthMethod();
                         
-                        // SECURITY: Google Sign-In users are ALWAYS "User" role (never Admin/Officer)
-                        // This prevents privilege escalation through Google accounts
-                        
-                        // Save user data to preferences
-                        preferencesManager.setUserId(existingUser.getId());
-                        preferencesManager.setLoggedIn(true);
-                        preferencesManager.setUserRole("User"); // FORCE User role for security
-                        preferencesManager.setFirstName(existingUser.getFirstName());
-                        preferencesManager.setLastName(existingUser.getLastName());
-                        
-                        // Navigate to Dashboard
-                        Intent intent = new Intent(LoginActivity.this, com.example.blottermanagementsystem.ui.activities.UserDashboardActivity.class);
-                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                        startActivity(intent);
-                        finish();
-                        
-                    } else {
-                        // User doesn't exist - REGISTER
-                        android.util.Log.d("LoginActivity", "Google user doesn't exist, creating new user: " + username);
-                        
-                        // Create new user in database with clean username
-                        com.example.blottermanagementsystem.data.entity.User newUser = 
-                            new com.example.blottermanagementsystem.data.entity.User(firstName, lastName, username, "", "User");
-                        newUser.setEmail(email); // Save email separately
-                        newUser.setProfilePhotoUri(photoUrl);
-                        
-                        java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-                            long userId = database.userDao().insertUser(newUser);
+                        if ("GOOGLE".equals(authMethod)) {
+                            // ✅ Google account exists - LOGIN
+                            android.util.Log.d("LoginActivity", "Google user exists, logging in: " + email);
                             
-                            runOnUiThread(() -> {
-                                // Save user data to preferences
-                                preferencesManager.setUserId((int) userId);
-                                preferencesManager.setLoggedIn(true);
-                                preferencesManager.setUserRole("User");
-                                preferencesManager.setFirstName(firstName);
-                                preferencesManager.setLastName(lastName);
-                                
-                                // Navigate to Profile Picture Selection
-                                Intent intent = new Intent(LoginActivity.this, com.example.blottermanagementsystem.ui.activities.ProfilePictureSelectionActivity.class);
-                                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                                startActivity(intent);
-                                finish();
-                            });
-                        });
+                            // SECURITY: Google Sign-In users are ALWAYS "User" role
+                            preferencesManager.setUserId(finalUserByEmail.getId());
+                            preferencesManager.setLoggedIn(true);
+                            preferencesManager.setUserRole("User");
+                            preferencesManager.setFirstName(finalUserByEmail.getFirstName());
+                            preferencesManager.setLastName(finalUserByEmail.getLastName());
+                            
+                            // Navigate to Dashboard
+                            Intent intent = new Intent(LoginActivity.this, com.example.blottermanagementsystem.ui.activities.UserDashboardActivity.class);
+                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                            startActivity(intent);
+                            finish();
+                            
+                        } else {
+                            // ✅ Email registered via Sign Up - REJECT Google Sign-In
+                            android.util.Log.w("LoginActivity", "Email already registered via Sign Up: " + email);
+                            Toast.makeText(LoginActivity.this, "This email is already registered. Please use Sign in with username and password.", Toast.LENGTH_LONG).show();
+                        }
+                        return;
                     }
+                    
+                    // ✅ Email not registered - Create new Google account
+                    android.util.Log.d("LoginActivity", "Email not registered, creating new Google account: " + email);
+                    
+                    // Create new user in database with clean username
+                    com.example.blottermanagementsystem.data.entity.User newUser = 
+                        new com.example.blottermanagementsystem.data.entity.User(firstName, lastName, username, "", "User");
+                    newUser.setEmail(email);
+                    newUser.setProfilePhotoUri(photoUrl);
+                    newUser.setAuthMethod("GOOGLE"); // ✅ Mark as Google account
+                    
+                    java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
+                        long userId = database.userDao().insertUser(newUser);
+                        
+                        runOnUiThread(() -> {
+                            // Save user data to preferences
+                            preferencesManager.setUserId((int) userId);
+                            preferencesManager.setLoggedIn(true);
+                            preferencesManager.setUserRole("User");
+                            preferencesManager.setFirstName(firstName);
+                            preferencesManager.setLastName(lastName);
+                            
+                            // Navigate to Profile Picture Selection
+                            Intent intent = new Intent(LoginActivity.this, com.example.blottermanagementsystem.ui.activities.ProfilePictureSelectionActivity.class);
+                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                            startActivity(intent);
+                            finish();
+                        });
+                    });
                 });
             });
             

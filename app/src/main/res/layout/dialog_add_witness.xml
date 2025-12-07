@@ -5,33 +5,106 @@
     android:layout_height="wrap_content"
     app:cardCornerRadius="20dp"
     app:cardElevation="12dp"
-    app:cardBackgroundColor="@color/dialog_background"
+    app:cardBackgroundColor="@android:color/transparent"
     app:strokeColor="@color/electric_blue"
     app:strokeWidth="2dp">
 
-    <LinearLayout
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="@drawable/dialog_rounded_corners"
-        android:padding="28dp">
+        android:fillViewport="false">
 
-        <!-- Title -->
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="👥 Add Witness"
-            android:textColor="@color/white"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="24dp" />
+            android:orientation="vertical"
+            android:background="@drawable/dialog_rounded_corners"
+            android:padding="28dp">
 
+        <!-- Title with Icon -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="24dp">
+            
+            <ImageView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_witness"
+                android:tint="@color/electric_blue"
+                android:layout_marginEnd="12dp" />
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Add Witness"
+                android:textColor="@color/white"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+            
+            <!-- "+" Icon Button (Outline Only) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAddAnother"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="+"
+                android:textColor="@color/electric_blue"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:padding="0dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                app:cornerRadius="12dp"
+                app:strokeColor="@color/electric_blue"
+                app:strokeWidth="2dp"
+                app:backgroundTint="@android:color/transparent"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_weight="0" />
+        </LinearLayout>
+
+        <!-- Witnesses List Section -->
+        <LinearLayout
+            android:id="@+id/witnessListSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="24dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:background="@drawable/dialog_rounded_corners"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Witnesses Added"
+                android:textColor="@color/electric_blue"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerWitnesses"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="80dp"
+                android:nestedScrollingEnabled="false" />
+        </LinearLayout>
     <!-- Full Name -->
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        app:boxBackgroundColor="@android:color/transparent"
+        app:boxBackgroundColor="#1e293b"
         app:boxStrokeColor="@color/electric_blue"
         app:boxStrokeWidth="2dp"
         app:boxCornerRadiusBottomEnd="12dp"
@@ -43,8 +116,8 @@
             android:id="@+id/etWitnessFullName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Full Name *"
-            android:inputType="text"
+            android:hint="Full Name"
+            android:inputType="textCapWords"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary" />
     </com.google.android.material.textfield.TextInputLayout>
@@ -54,7 +127,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        app:boxBackgroundColor="@android:color/transparent"
+        app:boxBackgroundColor="#1e293b"
         app:boxStrokeColor="@color/electric_blue"
         app:boxStrokeWidth="2dp"
         app:boxCornerRadiusBottomEnd="12dp"
@@ -67,7 +140,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Address"
-            android:inputType="text"
+            android:inputType="textCapWords"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary" />
     </com.google.android.material.textfield.TextInputLayout>
@@ -77,7 +150,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        app:boxBackgroundColor="@android:color/transparent"
+        app:boxBackgroundColor="#1e293b"
         app:boxStrokeColor="@color/electric_blue"
         app:boxStrokeWidth="2dp"
         app:boxCornerRadiusBottomEnd="12dp"
@@ -100,7 +173,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
-        app:boxBackgroundColor="@android:color/transparent"
+        app:boxBackgroundColor="#1e293b"
         app:boxStrokeColor="@color/electric_blue"
         app:boxStrokeWidth="2dp"
         app:boxCornerRadiusBottomEnd="12dp"
@@ -113,25 +186,24 @@
             android:layout_width="match_parent"
             android:layout_height="120dp"
             android:hint="Statement"
-            android:inputType="textMultiLine"
+            android:inputType="textMultiLine|textCapSentences"
             android:gravity="top"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Button Container -->
+    <!-- Button Container - Vertical Layout -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:spacing="8dp">
 
-        <!-- Save Button -->
+        <!-- Save Button - Full Width -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSaveWitness"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:layout_weight="1"
             android:text="Save"
             android:textColor="@color/white"
             android:textSize="16sp"
@@ -141,19 +213,19 @@
             app:iconGravity="textStart"
             app:iconTint="@color/white" />
 
-        <!-- Skip Button (for testing) -->
+        <!-- Done Button - Full Width -->
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSkipWitness"
-            android:layout_width="0dp"
+            android:id="@+id/btnDoneWitness"
+            android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="⏭️ Skip"
+            android:text="Done"
             android:textColor="@color/electric_blue"
             android:textSize="16sp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             app:strokeColor="@color/electric_blue"
-            app:cornerRadius="12dp" />
-    </LinearLayout>
-    </LinearLayout>
+            app:strokeWidth="2dp"
+            app:cornerRadius="12dp"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+        </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
 </com.google.android.material.card.MaterialCardView>

@@ -10,9 +10,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Hearing;
+import com.example.blottermanagementsystem.data.entity.BlotterReport;
 import com.example.blottermanagementsystem.ui.adapters.HearingAdapter;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
 import com.example.blottermanagementsystem.utils.RoleAccessControl;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -63,7 +65,7 @@ public class HearingCalendarActivity extends BaseActivity {
         tvSelectedDate = findViewById(R.id.tvSelectedDate);
         
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new HearingAdapter(hearing -> {
+        adapter = new HearingAdapter(this, hearing -> {
             // Handle hearing click
         });
         recyclerView.setAdapter(adapter);
@@ -80,29 +82,56 @@ public class HearingCalendarActivity extends BaseActivity {
     
     private void loadHearingsForDate(long date) {
         new Thread(() -> {
-            List<Hearing> allHearings = database.hearingDao().getAllHearings();
-            
-            // Filter hearings for selected date
-            Calendar selectedCal = Calendar.getInstance();
-            selectedCal.setTimeInMillis(date);
-            
-            // TODO: Fix date filtering - hearingDate is String, needs conversion
-            List<Hearing> hearingsForDate = allHearings; // Show all for now
-            // .filter(hearing -> isSameDay(hearing.getHearingDate(), date))
-            // .collect(Collectors.toList());
-            
-            runOnUiThread(() -> {
-                tvSelectedDate.setText(android.text.format.DateFormat.format("MMMM dd, yyyy", date));
+            try {
+                // ✅ Get current admin user ID
+                PreferencesManager preferencesManager = new PreferencesManager(this);
+                int adminId = preferencesManager.getUserId();
                 
-                if (hearingsForDate.isEmpty()) {
-                    recyclerView.setVisibility(View.GONE);
-                    tvEmpty.setVisibility(View.VISIBLE);
+                // ✅ Check if admin has assigned cases (if they're also an officer)
+                List<BlotterReport> assignedReports = database.blotterReportDao().getReportsByAssignedOfficer(adminId);
+                
+                // ✅ Get hearings - if admin has assigned cases, show only those; otherwise show all
+                List<Hearing> allHearings;
+                if (assignedReports != null && !assignedReports.isEmpty()) {
+                    // Admin has assigned cases - show only their hearings
+                    List<Integer> reportIds = new ArrayList<>();
+                    for (BlotterReport report : assignedReports) {
+                        reportIds.add(report.getId());
+                    }
+                    allHearings = database.hearingDao().getHearingsByReportIds(reportIds);
                 } else {
-                    recyclerView.setVisibility(View.VISIBLE);
-                    tvEmpty.setVisibility(View.GONE);
-                    adapter.setHearings(hearingsForDate);
+                    // Pure admin with no assigned cases - show all hearings
+                    allHearings = database.hearingDao().getAllHearings();
                 }
-            });
+                
+                // Filter hearings for selected date
+                Calendar selectedCal = Calendar.getInstance();
+                selectedCal.setTimeInMillis(date);
+                
+                // TODO: Fix date filtering - hearingDate is String, needs conversion
+                List<Hearing> hearingsForDate = allHearings; // Show all for now
+                // .filter(hearing -> isSameDay(hearing.getHearingDate(), date))
+                // .collect(Collectors.toList());
+                
+                runOnUiThread(() -> {
+                    tvSelectedDate.setText(android.text.format.DateFormat.format("MMMM dd, yyyy", date));
+                    
+                    if (hearingsForDate.isEmpty()) {
+                        recyclerView.setVisibility(View.GONE);
+                        tvEmpty.setVisibility(View.VISIBLE);
+                    } else {
+                        recyclerView.setVisibility(View.VISIBLE);
+                        tvEmpty.setVisibility(View.GONE);
+                        adapter.setHearings(hearingsForDate);
+                    }
+                });
+            } catch (Exception e) {
+                android.util.Log.e("HearingCalendar", "Error loading hearings: " + e.getMessage(), e);
+                runOnUiThread(() -> {
+                    tvEmpty.setVisibility(View.VISIBLE);
+                    recyclerView.setVisibility(View.GONE);
+                });
+            }
         }).start();
     }
     

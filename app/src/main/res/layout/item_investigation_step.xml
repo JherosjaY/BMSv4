@@ -17,7 +17,7 @@
         app:layout_constraintStart_toStartOf="@+id/ivStatus"
         app:layout_constraintVertical_chainStyle="packed" />
 
-    <!-- Status indicator -->
+    <!-- Status indicator - Icons (checkmarks, hourglasses, circles) -->
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/ivStatus"
         android:layout_width="24dp"

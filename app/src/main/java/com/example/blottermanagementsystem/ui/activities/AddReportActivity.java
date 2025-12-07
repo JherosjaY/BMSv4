@@ -642,9 +642,21 @@ public class AddReportActivity extends BaseActivity {
             "🟣 Other Incidents"
         };
         
+        // Create custom centered title for category selection
+        android.widget.TextView categoryTitle = new android.widget.TextView(this);
+        categoryTitle.setText("Select Category");
+        categoryTitle.setTextSize(20);
+        categoryTitle.setTextColor(android.graphics.Color.WHITE);
+        categoryTitle.setGravity(android.view.Gravity.CENTER);
+        categoryTitle.setPadding(16, 16, 16, 16);
+        categoryTitle.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        
         // Modern dark dialog with border
         androidx.appcompat.app.AlertDialog dialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this, com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
-            .setTitle("Select Category")
+            .setCustomTitle(categoryTitle)
             .setItems(categories, (dialogInterface, which) -> {
                 showIncidentTypesForCategory(which);
             })
@@ -735,13 +747,41 @@ public class AddReportActivity extends BaseActivity {
         android.view.View customView = android.view.LayoutInflater.from(this).inflate(R.layout.dialog_incident_types, null);
         android.widget.LinearLayout container = customView.findViewById(R.id.incidentTypesContainer);
         
-        // Add info text
+        // Remove container from its parent (the ScrollView in the layout)
+        android.view.ViewGroup parentOfContainer = (android.view.ViewGroup) container.getParent();
+        if (parentOfContainer != null) {
+            parentOfContainer.removeView(container);
+        }
+        
+        // Add info text to parent (outside scroll) - will be sticky at top
+        android.widget.LinearLayout parentLayout = new android.widget.LinearLayout(this);
+        parentLayout.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        parentLayout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        
         android.widget.TextView tvInfo = new android.widget.TextView(this);
         tvInfo.setText("Select up to 2 incident types");
         tvInfo.setTextSize(12);
         tvInfo.setTextColor(android.graphics.Color.GRAY);
+        tvInfo.setGravity(android.view.Gravity.CENTER);
         tvInfo.setPadding(16, 16, 16, 8);
-        container.addView(tvInfo);
+        tvInfo.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        parentLayout.addView(tvInfo);
+        
+        // Add the scrollable container
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+        scrollView.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        ));
+        scrollView.addView(container);
+        parentLayout.addView(scrollView);
         
         // Add checkboxes to container
         android.widget.LinearLayout checkboxGroup = new android.widget.LinearLayout(this);
@@ -751,8 +791,8 @@ public class AddReportActivity extends BaseActivity {
         ));
         checkboxGroup.setOrientation(android.widget.LinearLayout.VERTICAL);
         
-        int electricBlueColor = androidx.core.content.ContextCompat.getColor(this, R.color.electric_blue);
-        android.content.res.ColorStateList colorStateList = android.content.res.ColorStateList.valueOf(electricBlueColor);
+        int blueColor = android.graphics.Color.BLUE;
+        android.content.res.ColorStateList colorStateList = android.content.res.ColorStateList.valueOf(blueColor);
         
         for (int i = 0; i < types.length; i++) {
             android.widget.CheckBox checkBox = new android.widget.CheckBox(this);
@@ -796,10 +836,31 @@ public class AddReportActivity extends BaseActivity {
         
         container.addView(checkboxGroup);
         
+        // Create a custom title view that's center-aligned
+        android.widget.TextView customTitle = new android.widget.TextView(this);
+        customTitle.setText(categoryTitle);
+        customTitle.setTextSize(20);
+        customTitle.setTextColor(android.graphics.Color.WHITE);
+        customTitle.setGravity(android.view.Gravity.CENTER);
+        customTitle.setPadding(16, 16, 16, 16);
+        customTitle.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        
+        // Create a container for title + content
+        android.widget.LinearLayout dialogContent = new android.widget.LinearLayout(this);
+        dialogContent.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        dialogContent.setOrientation(android.widget.LinearLayout.VERTICAL);
+        dialogContent.addView(customTitle);
+        dialogContent.addView(parentLayout);
+        
         // Modern dark dialog with border
         androidx.appcompat.app.AlertDialog dialog2 = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this, com.google.android.material.R.style.ThemeOverlay_Material3_MaterialAlertDialog)
-            .setTitle(categoryTitle)
-            .setView(customView)
+            .setView(dialogContent)
             .setPositiveButton("Select", (dialogInterface, which) -> {
                 if (!selectedTypes.isEmpty()) {
                     // Join selected types with comma

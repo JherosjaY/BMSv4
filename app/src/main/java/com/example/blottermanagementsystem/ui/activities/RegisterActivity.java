@@ -236,27 +236,30 @@ public class RegisterActivity extends BaseActivity {
         
         hideError();
         
-        // Show loading for registration (AuthViewModel is async)
-        com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Creating account...");
+        // ✅ FIXED: DO NOT save to database yet!
+        // Store user data temporarily in SharedPreferences
+        // User will ONLY be saved AFTER successful email verification
         
-        // Hash the password before creating user
-        String hashedPassword = hashPassword(password);
+        preferencesManager.setTempUsername(username);
+        preferencesManager.setTempEmail(email);
+        preferencesManager.setTempPassword(hashPassword(password));
         
-        User newUser = new User("User", "Account", username, hashedPassword, "User");
-        newUser.setEmail(email);
-        authViewModel.register(newUser);
-    }
-    
-    private void handleRegisterSuccess() {
-        // Get user email (etUsername is the email field)
-        String email = etUsername.getText().toString().trim();
+        android.util.Log.d("RegisterActivity", "✅ Stored temp user data (NOT saved to DB yet)");
+        android.util.Log.d("RegisterActivity", "  Username: " + username);
+        android.util.Log.d("RegisterActivity", "  Email: " + email);
         
-        // Navigate to email verification screen
+        // Navigate to email verification screen WITHOUT saving user
         Intent intent = new Intent(RegisterActivity.this, EmailVerificationActivity.class);
         intent.putExtra("email", email);
         intent.putExtra("type", "registration");
+        intent.putExtra("username", username);
         startActivity(intent);
         finish();
+    }
+    
+    private void handleRegisterSuccess() {
+        // This method is no longer used for email/password registration
+        // Email verification now handles the flow
     }
     
     private void showCredentialsDialog(String userName, String username, String password) {

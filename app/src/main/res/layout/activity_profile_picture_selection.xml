@@ -260,7 +260,10 @@
                     android:layout_height="wrap_content"
                     android:inputType="textCapWords"
                     android:textColor="@color/white"
-                    android:textSize="16sp" />
+                    android:textSize="16sp"
+                    android:padding="12dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
@@ -288,7 +291,10 @@
                     android:layout_height="wrap_content"
                     android:inputType="textCapWords"
                     android:textColor="@color/white"
-                    android:textSize="16sp" />
+                    android:textSize="16sp"
+                    android:padding="12dp"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true" />
             </com.google.android.material.textfield.TextInputLayout>
 
         </LinearLayout>
@@ -310,7 +316,7 @@
         app:cornerRadius="12dp"
         app:elevation="0dp"
         app:icon="@drawable/ic_arrow_forward"
-        app:iconGravity="end"
+        app:iconGravity="textEnd"
         app:iconPadding="8dp"
         app:iconTint="#0f172a"
         app:layout_constraintEnd_toEndOf="parent"

@@ -25,12 +25,17 @@ import com.example.blottermanagementsystem.data.entity.BlotterReport;
 import com.example.blottermanagementsystem.data.model.InvestigationStep;
 import com.example.blottermanagementsystem.ui.adapters.ImageAdapter;
 import com.example.blottermanagementsystem.ui.adapters.InvestigationStepAdapter;
+import com.example.blottermanagementsystem.ui.adapters.InvestigationActionAdapter;
 import com.example.blottermanagementsystem.ui.adapters.VideoAdapter;
 import com.example.blottermanagementsystem.ui.dialogs.AddSuspectDialogFragment;
 import com.example.blottermanagementsystem.ui.dialogs.AddWitnessDialogFragment;
 import com.example.blottermanagementsystem.ui.dialogs.DocumentResolutionDialogFragment;
-import com.example.blottermanagementsystem.ui.dialogs.KPFormsDialogFragment;
+import com.example.blottermanagementsystem.ui.dialogs.OfficerSendSmsDialogFragment;
 import com.example.blottermanagementsystem.ui.dialogs.ScheduleHearingDialogFragment;
+import com.example.blottermanagementsystem.ui.dialogs.ViewWitnessesDialogFragment;
+import com.example.blottermanagementsystem.ui.dialogs.ViewSuspectsDialogFragment;
+import com.example.blottermanagementsystem.ui.dialogs.ViewHearingsDialogFragment;
+import com.example.blottermanagementsystem.ui.dialogs.ViewResolutionDialogFragment;
 import com.example.blottermanagementsystem.utils.MediaManager;
 import com.example.blottermanagementsystem.utils.NotificationHelper;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
@@ -87,7 +92,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
     private RecyclerView rvCaseProgress;  // Container 1: View-only progress
     private RecyclerView rvInvestigationActions;  // Container 2: Interactive actions
     private InvestigationStepAdapter caseProgressAdapter;
-    private InvestigationStepAdapter investigationActionsAdapter;
+    private InvestigationActionAdapter investigationActionsAdapter;
     private List<InvestigationStep> caseProgressSteps = new ArrayList<>();
     private List<InvestigationStep> investigationActionSteps = new ArrayList<>();
     private boolean isTimelineInitializing = false;  // ✅ Prevent concurrent initialization
@@ -256,7 +261,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
               currentReport.getStatus().equalsIgnoreCase("RESOLVED")));
         
         rvInvestigationActions = findViewById(R.id.rvInvestigationActions);
-        investigationActionsAdapter = new InvestigationStepAdapter(investigationActionSteps, new InvestigationStepAdapter.OnStepActionListener() {
+        investigationActionsAdapter = new InvestigationActionAdapter(investigationActionSteps, new InvestigationActionAdapter.OnActionListener() {
             @Override
             public void onStepAction(InvestigationStep step) {
                 android.util.Log.d("OfficerCaseDetail", "Investigation action clicked: " + step.getTitle());
@@ -265,12 +270,13 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
                     openAddWitness();
                 } else if ("A2".equals(stepId)) {
                     openAddSuspect();
+                } else if ("A3".equals(stepId)) {
+                    openCreateHearing(); // ✅ Schedule Hearing button
                 } else if ("A4".equals(stepId)) {
-                    openCreateHearing();
+                    openSendSms(); // ✅ Send SMS button
                 } else if ("A5".equals(stepId)) {
-                    openDocumentResolution();
+                    openDocumentResolution(); // ✅ Document Resolution button
                 }
-                // ❌ REMOVED: "A3" (Add Evidence) - Officer focuses on user-provided evidence only
             }
             @Override
             public void onViewWitnesses(int reportId) {}
@@ -282,9 +288,26 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             public void onViewHearings(int reportId) {}
             @Override
             public void onViewResolution(int reportId) {}
+            @Override
+            public void onViewStepDetails(String stepTag, int reportId) {
+                // ✅ Handle "View Details" click for completed steps
+                if ("record_witness".equals(stepTag)) {
+                    openViewWitnesses();
+                } else if ("identify_suspect".equals(stepTag)) {
+                    openViewSuspects();
+                } else if ("schedule_hearing".equals(stepTag)) {
+                    openViewHearings();
+                } else if ("document_resolution".equals(stepTag)) {
+                    openViewResolution();
+                }
+            }
         }, isInvestigationStarted);
         rvInvestigationActions.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false));
         rvInvestigationActions.setAdapter(investigationActionsAdapter);
+        
+        // ✅ Set reportId and user role for adapter
+        investigationActionsAdapter.setReportId(reportId);
+        investigationActionsAdapter.setUserRole("OFFICER");
         
         // ⚠️ DO NOT initialize timeline here - database is null!
         // Timeline will be initialized in populateViews() after report is loaded
@@ -370,12 +393,13 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             caseProgressSteps.add(step2);
             
             // Step 3: Investigation Started
-            // ✅ Check if investigation has started (case status is ONGOING)
+            // ✅ Check if investigation has started (case status is ONGOING, IN PROGRESS, or RESOLVED)
             InvestigationStep step3 = new InvestigationStep("3", "Investigation Started", "Officer begins investigation", "investigation_started");
             boolean isInvestigationStarted = currentReport != null && 
                 currentReport.getStatus() != null && 
                 (currentReport.getStatus().equalsIgnoreCase("ONGOING") || 
-                 currentReport.getStatus().equalsIgnoreCase("IN PROGRESS"));
+                 currentReport.getStatus().equalsIgnoreCase("IN PROGRESS") ||
+                 currentReport.getStatus().equalsIgnoreCase("RESOLVED"));
             
             if (isInvestigationStarted) {
                 // Investigation has started - show as COMPLETED (checkmark)
@@ -390,28 +414,28 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             }
             caseProgressSteps.add(step3);
             
-            // Step 4: Witnesses & Evidence Collected
-            // ✅ Check if witness, suspect, AND evidence all exist
-            InvestigationStep step4 = new InvestigationStep("4", "Witnesses & Evidence Collected", "Gathering case information", "evidence_collected");
+            // Step 4: Witnesses & Suspects
+            // ✅ Check if witness AND suspect both exist
+            InvestigationStep step4 = new InvestigationStep("4", "Witnesses & Suspects", "Gathering case information", "evidence_collected");
             int witnessCount = database.witnessDao().getWitnessCountByReport(reportId);
             int suspectCount = database.suspectDao().getSuspectCountByReport(reportId);
             int evidenceCount = database.evidenceDao().getEvidenceCountByReport(reportId);
         
-        if (witnessCount > 0 && suspectCount > 0 && evidenceCount > 0) {
-            // All 3 collected - COMPLETED
+        if (witnessCount > 0 && suspectCount > 0) {
+            // Both witness and suspect collected - COMPLETED
             step4.setCompleted(true);
             step4.setInProgress(false);
-            android.util.Log.d("OfficerCaseDetail", "✅ Step 4: COMPLETED (all witness, suspect, evidence present)");
+            android.util.Log.d("OfficerCaseDetail", "✅ Step 4: COMPLETED (witness and suspect present)");
         } else if (isInvestigationStarted) {
-            // Investigation started - show as IN PROGRESS (hourglass - current active)
+            // ✅ Investigation started - show as IN PROGRESS (hourglass) even if no data yet
             step4.setCompleted(false);
             step4.setInProgress(true);
-            android.util.Log.d("OfficerCaseDetail", "⏳ Step 4: IN PROGRESS (collecting W:" + witnessCount + " S:" + suspectCount + " E:" + evidenceCount + ")");
+            android.util.Log.d("OfficerCaseDetail", "⏳ Step 4: IN PROGRESS (investigation started, collecting W:" + witnessCount + " S:" + suspectCount + ")");
         } else {
-            // Investigation not started - PENDING
+            // Investigation not started - PENDING (empty circle)
             step4.setCompleted(false);
             step4.setInProgress(false);
-            android.util.Log.d("OfficerCaseDetail", "⭕ Step 4: PENDING");
+            android.util.Log.d("OfficerCaseDetail", "⭕ Step 4: PENDING (waiting for investigation to start)");
         }
         caseProgressSteps.add(step4);
         
@@ -462,13 +486,34 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
         caseProgressSteps.add(step6);
         
         // Step 7: Case Closed
-        // ✅ Auto-complete if resolution exists
+        // ✅ Check resolution type: Settled = Completed ✅, Withdrawn = Hourglass ⏳
         InvestigationStep step7 = new InvestigationStep("7", "Case Closed", "Case finalized", "case_closed");
         if (resolutionCount > 0) {
-            // Resolution exists - case is closed - COMPLETED (checkmark)
-            step7.setCompleted(true);
-            step7.setInProgress(false);
-            android.util.Log.d("OfficerCaseDetail", "✅ Step 7: COMPLETED (auto-complete due to resolution)");
+            // Check resolution type
+            try {
+                java.util.List<com.example.blottermanagementsystem.data.entity.Resolution> resolutions = 
+                    database.resolutionDao().getResolutionsByReport(reportId);
+                
+                if (resolutions != null && !resolutions.isEmpty()) {
+                    com.example.blottermanagementsystem.data.entity.Resolution resolution = resolutions.get(0);
+                    
+                    if ("Settled".equals(resolution.getResolutionType())) {
+                        // ✅ Settled = Case is COMPLETED (checkmark)
+                        step7.setCompleted(true);
+                        step7.setInProgress(false);
+                        android.util.Log.d("OfficerCaseDetail", "✅ Step 7: COMPLETED (Settled)");
+                    } else if ("Withdrawn".equals(resolution.getResolutionType())) {
+                        // ⏳ Withdrawn = Show hourglass (respondent didn't appear)
+                        step7.setCompleted(false);
+                        step7.setInProgress(true);
+                        android.util.Log.d("OfficerCaseDetail", "⏳ Step 7: IN PROGRESS (Withdrawn - respondent didn't appear)");
+                    }
+                }
+            } catch (Exception e) {
+                android.util.Log.e("OfficerCaseDetail", "Error checking resolution type: " + e.getMessage());
+                step7.setCompleted(true);
+                step7.setInProgress(false);
+            }
         } else if (hearingCount > 0) {
             // Hearing scheduled - show as IN PROGRESS (hourglass - current active)
             step7.setCompleted(false);
@@ -505,35 +550,83 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
         // ❌ REMOVED: Action 3: Gather Evidence - Officer focuses on user-provided evidence only
         // Evidence is now view-only for officers (uploaded by users)
         
-        // Action 4: Schedule Hearing (DISABLED - unlock after suspect added)
-        InvestigationStep actionHearing = new InvestigationStep("A4", "Schedule Hearings", "Conduct hearings with involved parties", "schedule_hearing");
+        // Action 3: Schedule Hearing (WITH ACTION BUTTON)
+        InvestigationStep actionHearing = new InvestigationStep("A3", "Schedule Hearings", "Conduct hearings with involved parties", "schedule_hearing");
         actionHearing.setCompleted(false);
         actionHearing.setInProgress(false);
-        actionHearing.setActionText("Schedule Hearing");
+        actionHearing.setActionText("Schedule Hearing"); // ✅ ACTION BUTTON - allow scheduling
         actionHearing.setActionIcon(R.drawable.ic_hearing);
-        actionHearing.setEnabled(suspectCount > 0); // ✅ Enabled if suspect exists (was: evidenceCount > 0)
+        actionHearing.setEnabled(suspectCount > 0);
         investigationActionSteps.add(actionHearing);
         
-        // Action 5: Document Resolution (DISABLED - unlock after hearing scheduled)
+        // Action 4: Send SMS Notification (MOVED HERE - after Schedule Hearings)
+        InvestigationStep actionSendSms = new InvestigationStep("A4", "Send SMS Notification", "Notify respondent/witness via SMS", "send_sms");
+        actionSendSms.setCompleted(false);
+        actionSendSms.setInProgress(false);
+        actionSendSms.setActionText("Send SMS");
+        actionSendSms.setActionIcon(R.drawable.ic_sms);
+        actionSendSms.setEnabled(hearingCount > 0); // ✅ Enabled only if hearing is scheduled
+        investigationActionSteps.add(actionSendSms);
+        
+        // Action 5: Document Resolution (WITH ACTION BUTTON)
         InvestigationStep actionResolution = new InvestigationStep("A5", "Document Resolution", "Record the case outcome", "document_resolution");
         actionResolution.setCompleted(false);
         actionResolution.setInProgress(false);
-        actionResolution.setActionText("Document Resolution");
+        actionResolution.setActionText("Document Resolution"); // ✅ ACTION BUTTON - allow documenting resolution
         actionResolution.setActionIcon(R.drawable.ic_resolution);
-        actionResolution.setEnabled(hearingCount > 0); // ✅ Enabled if hearing exists
-            investigationActionSteps.add(actionResolution);
+        
+        // ✅ ENABLE ONLY IF: Hearing is completed/cancelled OR 30 mins have passed since scheduled time
+        boolean canEnableResolution = false;
+        if (hearingCount > 0) {
+            try {
+                List<com.example.blottermanagementsystem.data.entity.Hearing> hearings = database.hearingDao().getHearingsByReportId(reportId);
+                if (hearings != null && !hearings.isEmpty()) {
+                    com.example.blottermanagementsystem.data.entity.Hearing hearing = hearings.get(0);
+                    // Check if hearing is completed/cancelled OR 30 mins have passed
+                    canEnableResolution = hearing.isHearingCompleted() || hearing.canEnableResolution();
+                    android.util.Log.d("OfficerCaseDetail", "Hearing status: " + hearing.getStatus() + 
+                        ", Attendance: " + hearing.getAttendanceStatus() + 
+                        ", Can enable: " + canEnableResolution);
+                }
+            } catch (Exception e) {
+                android.util.Log.e("OfficerCaseDetail", "Error checking hearing status: " + e.getMessage());
+            }
+        }
+        actionResolution.setEnabled(canEnableResolution);
+        investigationActionSteps.add(actionResolution);
+        
+        // ✅ MARK STEPS AS COMPLETED IF DATA EXISTS
+        if (witnessCount > 0) {
+            investigationActionSteps.get(0).setCompleted(true);  // Record Witness
+            android.util.Log.d("OfficerCaseDetail", "✅ Marked 'Record Witness' as completed");
+        }
+        if (suspectCount > 0) {
+            investigationActionSteps.get(1).setCompleted(true);  // Identify Suspect
+            android.util.Log.d("OfficerCaseDetail", "✅ Marked 'Identify Suspect' as completed");
+        }
+        if (hearingCount > 0) {
+            investigationActionSteps.get(2).setCompleted(true);  // Schedule Hearings
+            android.util.Log.d("OfficerCaseDetail", "✅ Marked 'Schedule Hearings' as completed");
+        }
+        if (resolutionCount > 0) {
+            investigationActionSteps.get(4).setCompleted(true);  // Document Resolution (now at index 4)
+            android.util.Log.d("OfficerCaseDetail", "✅ Marked 'Document Resolution' as completed");
+        }
             
             // ✅ Update UI on main thread
             runOnUiThread(() -> {
                 // Notify adapters of changes
                 if (caseProgressAdapter != null) {
                     caseProgressAdapter.updateSteps(caseProgressSteps);
+                    caseProgressAdapter.notifyDataSetChanged();
                 }
                 if (investigationActionsAdapter != null) {
                     investigationActionsAdapter.updateSteps(investigationActionSteps);
+                    investigationActionsAdapter.notifyDataSetChanged();
                 }
                 
                 android.util.Log.d("OfficerCaseDetail", "✅ Investigation timeline initialized: " + caseProgressSteps.size() + " progress steps + " + investigationActionSteps.size() + " action steps");
+                android.util.Log.d("OfficerCaseDetail", "✅ Adapters notified - UI should update now");
                 
                 // ✅ Reset flag to allow next initialization
                 isTimelineInitializing = false;
@@ -569,9 +662,6 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
         }
         if (btnDocumentResolution != null) {
             btnDocumentResolution.setOnClickListener(v -> openDocumentResolution());
-        }
-        if (btnKPForms != null) {
-            btnKPForms.setOnClickListener(v -> openKPForms());
         }
     }
     
@@ -781,8 +871,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             // btnSummons removed - Summons feature deleted from system
             if (btnResolveCase != null) btnResolveCase.setVisibility(View.GONE);
             
-            // Show a message that the case is resolved
-            Toast.makeText(this, "This case has been resolved and is now closed.", Toast.LENGTH_SHORT).show();
+            // ✅ REMOVED: Toast - Don't show on every load, only when first resolved
         }
         // Handle any other status
         else {
@@ -1025,7 +1114,6 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
         
         // Check for documents
         boolean hasResolution = !database.resolutionDao().getResolutionsByReportId(currentReport.getId()).isEmpty();
-        boolean hasKPForm = !database.kpFormDao().getFormsByReportId(currentReport.getId()).isEmpty();
         boolean hasSummons = database.summonsDao().getSummonsByReportId(currentReport.getId()) != null;
         
         // Build list of missing requirements
@@ -1038,7 +1126,6 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             missingRequirements.add("At least one hearing must be conducted");
         }
         if (!hasResolution) missingRequirements.add("A resolution document is required");
-        if (!hasKPForm) missingRequirements.add("A KP Form is required");
         if (!hasSummons) missingRequirements.add("A Summons document is required");
         
         if (missingRequirements.isEmpty()) {
@@ -1433,14 +1520,18 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
     // Investigation Feature Methods - Floating Dialogs
     private void openAddWitness() {
         AddWitnessDialogFragment dialog = AddWitnessDialogFragment.newInstance(reportId, witness -> {
-            // Witness added successfully
+            // ✅ Witness added successfully - refresh timeline to unlock next button
+            Toast.makeText(this, "✅ Witness added! Next step unlocked.", Toast.LENGTH_SHORT).show();
+            refreshInvestigationTimeline();
         });
         dialog.show(getSupportFragmentManager(), "AddWitness");
     }
     
     private void openAddSuspect() {
         AddSuspectDialogFragment dialog = AddSuspectDialogFragment.newInstance(reportId, suspect -> {
-            // Suspect added successfully
+            // ✅ Suspect added successfully - refresh timeline to unlock next button
+            Toast.makeText(this, "✅ Suspect added! Next step unlocked.", Toast.LENGTH_SHORT).show();
+            refreshInvestigationTimeline();
         });
         dialog.show(getSupportFragmentManager(), "AddSuspect");
     }
@@ -1449,23 +1540,128 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
     
     private void openCreateHearing() {
         ScheduleHearingDialogFragment dialog = ScheduleHearingDialogFragment.newInstance(reportId, hearing -> {
-            // Hearing scheduled successfully
+            // ✅ Hearing scheduled successfully - refresh timeline to unlock next button
+            refreshInvestigationTimeline();
         });
         dialog.show(getSupportFragmentManager(), "ScheduleHearing");
     }
     
+    // ✅ EDIT/RESCHEDULE HEARING
+    private void openEditHearing(com.example.blottermanagementsystem.data.entity.Hearing hearing) {
+        com.example.blottermanagementsystem.ui.dialogs.EditHearingDialogFragment dialog = 
+            com.example.blottermanagementsystem.ui.dialogs.EditHearingDialogFragment.newInstance(hearing, updatedHearing -> {
+                // ✅ Hearing rescheduled successfully - refresh timeline
+                Toast.makeText(this, "Hearing rescheduled successfully", Toast.LENGTH_SHORT).show();
+                refreshInvestigationTimeline();
+            });
+        dialog.show(getSupportFragmentManager(), "EditHearing");
+    }
+    
     private void openDocumentResolution() {
         DocumentResolutionDialogFragment dialog = DocumentResolutionDialogFragment.newInstance(reportId, resolution -> {
-            // Resolution documented successfully
+            // ✅ Resolution documented successfully - refresh timeline
+            refreshInvestigationTimeline();
         });
         dialog.show(getSupportFragmentManager(), "DocumentResolution");
     }
     
-    private void openKPForms() {
-        KPFormsDialogFragment dialog = KPFormsDialogFragment.newInstance(reportId, (formName, formId) -> {
-            // Form selected
+    private void openSendSms() {
+        if (currentReport == null) {
+            Toast.makeText(this, "Case not loaded", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // ✅ Fetch hearing details from database if available
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                List<com.example.blottermanagementsystem.data.entity.Hearing> hearings = 
+                    database.hearingDao().getHearingsByReportId(reportId);
+                
+                String hearingDate = "TBD";
+                String hearingTime = "TBD";
+                
+                if (hearings != null && !hearings.isEmpty()) {
+                    // Get the first (most recent) hearing
+                    com.example.blottermanagementsystem.data.entity.Hearing hearing = hearings.get(0);
+                    hearingDate = hearing.getHearingDate() != null ? hearing.getHearingDate() : "TBD";
+                    hearingTime = hearing.getHearingTime() != null ? hearing.getHearingTime() : "TBD";
+                    Log.d("OfficerCaseDetail", "✅ Hearing found - Date: " + hearingDate + ", Time: " + hearingTime);
+                } else {
+                    Log.d("OfficerCaseDetail", "⚠️ No hearing scheduled yet");
+                }
+                
+                final String finalHearingDate = hearingDate;
+                final String finalHearingTime = hearingTime;
+                
+                runOnUiThread(() -> {
+                    OfficerSendSmsDialogFragment dialog = OfficerSendSmsDialogFragment.newInstance(
+                        currentReport.getCaseNumber(),
+                        currentReport.getRespondentName(),
+                        finalHearingDate,
+                        finalHearingTime,
+                        "Barangay Hall",
+                        currentReport.getStatus(),
+                        new OfficerSendSmsDialogFragment.OnSmsSentListener() {
+                            @Override
+                            public void onSmsSent(String phoneNumber, String messageType) {
+                                // Toast removed - SMS sent silently
+                            }
+                            
+                            @Override
+                            public void onSmsFailed(String errorMessage) {
+                                Toast.makeText(OfficerCaseDetailActivity.this, "❌ SMS failed: " + errorMessage, Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    );
+                    dialog.show(getSupportFragmentManager(), "SendSms");
+                });
+            } catch (Exception e) {
+                Log.e("OfficerCaseDetail", "Error fetching hearing details: " + e.getMessage(), e);
+                runOnUiThread(() -> {
+                    OfficerSendSmsDialogFragment dialog = OfficerSendSmsDialogFragment.newInstance(
+                        currentReport.getCaseNumber(),
+                        currentReport.getRespondentName(),
+                        "TBD",
+                        "TBD",
+                        "Barangay Hall",
+                        currentReport.getStatus(),
+                        new OfficerSendSmsDialogFragment.OnSmsSentListener() {
+                            @Override
+                            public void onSmsSent(String phoneNumber, String messageType) {
+                                // Toast removed - SMS sent silently
+                            }
+                            
+                            @Override
+                            public void onSmsFailed(String errorMessage) {
+                                Toast.makeText(OfficerCaseDetailActivity.this, "❌ SMS failed: " + errorMessage, Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    );
+                    dialog.show(getSupportFragmentManager(), "SendSms");
+                });
+            }
         });
-        dialog.show(getSupportFragmentManager(), "KPForms");
+    }
+    
+    // ✅ View Details Methods for Completed Steps
+    private void openViewWitnesses() {
+        ViewWitnessesDialogFragment dialog = ViewWitnessesDialogFragment.newInstance(reportId);
+        dialog.show(getSupportFragmentManager(), "ViewWitnesses");
+    }
+    
+    private void openViewSuspects() {
+        ViewSuspectsDialogFragment dialog = ViewSuspectsDialogFragment.newInstance(reportId);
+        dialog.show(getSupportFragmentManager(), "ViewSuspects");
+    }
+    
+    private void openViewHearings() {
+        ViewHearingsDialogFragment dialog = ViewHearingsDialogFragment.newInstance(reportId);
+        dialog.show(getSupportFragmentManager(), "ViewHearings");
+    }
+    
+    private void openViewResolution() {
+        ViewResolutionDialogFragment dialog = ViewResolutionDialogFragment.newInstance(reportId);
+        dialog.show(getSupportFragmentManager(), "ViewResolution");
     }
     
     private void openViewPersonHistory() {
@@ -1523,53 +1719,72 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Refresh case details when returning to this screen
+        android.util.Log.d("OfficerCaseDetail", "🔄 onResume called");
+        // ✅ Refresh case details AND timeline when returning to this screen
         if (reportId != -1) {
+            android.util.Log.d("OfficerCaseDetail", "🔄 Loading case details...");
             loadCaseDetails();
-            // Timeline will be initialized in populateViews() via loadCaseDetails()
-            // No need to call refreshInvestigationTimeline() here to avoid duplication
+            // ✅ Delay timeline refresh to ensure data is loaded
+            new Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                android.util.Log.d("OfficerCaseDetail", "🔄 Refreshing timeline after delay...");
+                refreshInvestigationTimeline();
+            }, 1000); // 1 second delay to ensure loadCaseDetails completes
         }
     }
     
     /**
      * Refresh the entire investigation timeline
-     * Called when returning to this activity
+     * Called when returning to this activity OR when hearing time is set
+     * ✅ PUBLIC - Can be called from dialog fragments
      */
-    private void refreshInvestigationTimeline() {
-        // Reinitialize both containers with current data
-        initializeInvestigationTimeline();
-        android.util.Log.d("OfficerCaseDetail", "✅ Timeline refreshed");
+    public void refreshInvestigationTimeline() {
+        // ✅ Add delay to ensure data is saved to database before refreshing
+        new Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            android.util.Log.d("OfficerCaseDetail", "Starting timeline refresh...");
+            initializeInvestigationTimeline();
+            android.util.Log.d("OfficerCaseDetail", "Timeline refresh complete - Document Resolution button should now be enabled");
+        }, 500); // 500ms delay to ensure database write
+    }
+    
+    // ✅ PUBLIC METHOD - Called directly from dialog fragments
+    public void refreshTimelineDirectly() {
+        android.util.Log.d("OfficerCaseDetail", "refreshTimelineDirectly() called from dialog");
+        // Add small delay to ensure data is saved
+        new Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            android.util.Log.d("OfficerCaseDetail", "🔄 Direct timeline refresh starting...");
+            initializeInvestigationTimeline();
+            android.util.Log.d("OfficerCaseDetail", "✅ Direct timeline refresh complete");
+        }, 300); // 300ms delay
     }
     
     /**
      * Set the status chip color based on the status value
-     * Color coding: Pending/Assigned = Blue, Ongoing = Yellow, Resolved = Green
+     * ✅ FIXED: Resolved cases use GREEN, others use BLUE
+     * Color coding:
+     * - Pending/Assigned/Ongoing → Electric Blue
+     * - Resolved/Closed/Settled → Green
      */
     private void setStatusChipColor(String status) {
         if (chipStatus == null) return;
         
         int backgroundColor;
-        String statusLower = status != null ? status.toLowerCase() : "pending";
+        String statusLower = status != null ? status.toLowerCase() : "";
         
-        switch (statusLower) {
-            case "pending":
-            case "assigned":
-                // 🔵 Pending/Assigned - Electric Blue
-                backgroundColor = getColor(R.color.electric_blue);
-                break;
-            case "ongoing":
-            case "under investigation":
-                // 🟡 Ongoing - Yellow
-                backgroundColor = getColor(R.color.warning_yellow);
-                break;
-            case "resolved":
-            case "closed":
-                // 🟢 Resolved - Green
-                backgroundColor = getColor(R.color.success_green);
-                break;
-            default:
-                // ⚪ Unknown - Gray
-                backgroundColor = getColor(R.color.text_secondary);
+        // ✅ GREEN for resolved/completed cases
+        if (statusLower.contains("resolved") || statusLower.contains("closed") || statusLower.contains("settled")) {
+            backgroundColor = getColor(R.color.status_resolved); // GREEN
+            android.util.Log.d("OfficerCaseDetail", "✅ Status '" + status + "' set to GREEN (Resolved)");
+        }
+        // ✅ BLUE for active/pending cases
+        else if (statusLower.contains("pending") || statusLower.contains("assigned") || 
+                 statusLower.contains("ongoing") || statusLower.contains("in progress")) {
+            backgroundColor = getColor(R.color.electric_blue); // BLUE
+            android.util.Log.d("OfficerCaseDetail", "✅ Status '" + status + "' set to BLUE (Active)");
+        }
+        // Default to BLUE for unknown statuses
+        else {
+            backgroundColor = getColor(R.color.electric_blue);
+            android.util.Log.d("OfficerCaseDetail", "ℹ️ Status '" + status + "' set to default BLUE");
         }
         
         chipStatus.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(backgroundColor));

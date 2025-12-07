@@ -41,4 +41,13 @@ public interface HearingDao {
     
     @Query("SELECT * FROM hearings WHERE blotterReportId = :reportId ORDER BY hearingDate DESC")
     List<Hearing> getHearingsByReport(int reportId);
+    
+    @Query("SELECT * FROM hearings WHERE blotterReportId IN (:reportIds) ORDER BY hearingDate DESC")
+    List<Hearing> getHearingsByReportIds(List<Integer> reportIds);
+    
+    @Query("SELECT * FROM hearings WHERE approvalStatus = 'PENDING' ORDER BY createdAt DESC")
+    List<Hearing> getPendingHearingRequests();
+    
+    @Query("SELECT * FROM hearings WHERE approvalStatus IN ('APPROVED', 'DECLINED') ORDER BY approvalDate DESC")
+    List<Hearing> getApprovedOrDeclinedHearings();
 }

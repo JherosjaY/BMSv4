@@ -122,6 +122,9 @@
         <item name="colorSurface">@color/primary_dark_blue</item>
         <item name="colorPrimary">@color/electric_blue</item>
         <item name="colorSecondary">@color/electric_blue</item>
+        <item name="colorTertiary">@color/electric_blue</item>
+        <item name="android:windowBackground">@color/primary_dark_blue</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
     
     <!-- Time Picker Theme - Primary/Secondary Colors (No Violet Accent) -->
@@ -134,5 +137,13 @@
         <item name="colorSurface">@color/primary_dark_blue</item>
         <item name="colorPrimary">@color/electric_blue</item>
         <item name="colorSecondary">@color/electric_blue</item>
+        <item name="colorTertiary">@color/electric_blue</item>
+        <item name="android:windowBackground">@color/primary_dark_blue</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+    
+    <!-- Calendar Date Style - Electric Blue Highlight -->
+    <style name="CalendarDateStyle" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/text_primary</item>
     </style>
 </resources>

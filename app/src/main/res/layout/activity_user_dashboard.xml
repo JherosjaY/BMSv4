@@ -147,15 +147,6 @@
                 android:textSize="24sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:text="My Statistics"
-                android:textColor="@color/text_primary"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
             <!-- Statistics Grid - 2x2 Staggered Layout -->
             <LinearLayout
                 android:layout_width="match_parent"

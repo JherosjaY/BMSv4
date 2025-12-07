@@ -27,7 +27,6 @@ public class ViewWitnessesDialogFragment extends DialogFragment {
     private int reportId;
     private RecyclerView rvWitnessList;
     private TextView tvEmptyState;
-    private MaterialCardView cardContainer;
     private WitnessListAdapter adapter;
     private List<Witness> witnessList = new ArrayList<>();
     
@@ -42,9 +41,18 @@ public class ViewWitnessesDialogFragment extends DialogFragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Material_Dialog_MinWidth);
+        setStyle(DialogFragment.STYLE_NO_FRAME, android.R.style.Theme_Material_Dialog_MinWidth);
         if (getArguments() != null) {
             reportId = getArguments().getInt("report_id");
+        }
+    }
+    
+    @Override
+    public void onStart() {
+        super.onStart();
+        // ✅ Set dim effect (0.5f = 50% dim, looks nice)
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setDimAmount(0.5f);
         }
     }
     
@@ -62,7 +70,6 @@ public class ViewWitnessesDialogFragment extends DialogFragment {
     }
     
     private void initViews(View view) {
-        cardContainer = view.findViewById(R.id.cardWitnessContainer);
         rvWitnessList = view.findViewById(R.id.rvWitnessList);
         tvEmptyState = view.findViewById(R.id.tvEmptyState);
         

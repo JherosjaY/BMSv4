@@ -22,6 +22,7 @@ public class Person {
     private long lastUpdated;
     private boolean isActive;
     private String notes;
+    private String normalizedName;  // ✅ For case-insensitive matching
 
     public Person() {
         this.dateAdded = System.currentTimeMillis();
@@ -68,6 +69,8 @@ public class Person {
     public void setActive(boolean active) { isActive = active; }
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+    public String getNormalizedName() { return normalizedName; }
+    public void setNormalizedName(String normalizedName) { this.normalizedName = normalizedName; }
 
     // Alias for compatibility
     public long getCreatedAt() { return dateAdded; }
@@ -95,6 +98,8 @@ public class Person {
                 this.firstName = parts[0];
                 this.lastName = "";
             }
+            // ✅ Auto-set normalized name
+            this.normalizedName = fullName.toLowerCase().trim();
         }
     }
     

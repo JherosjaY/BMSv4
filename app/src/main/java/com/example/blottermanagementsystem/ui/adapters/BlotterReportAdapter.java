@@ -9,6 +9,8 @@ import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.entity.BlotterReport;
+import com.example.blottermanagementsystem.utils.StatusColorUtil;
+import com.google.android.material.chip.Chip;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -32,7 +34,7 @@ public class BlotterReportAdapter extends RecyclerView.Adapter<BlotterReportAdap
     @Override
     public ReportViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-            .inflate(R.layout.item_blotter_report, parent, false);
+            .inflate(R.layout.item_report, parent, false);
         return new ReportViewHolder(view);
     }
     
@@ -54,77 +56,71 @@ public class BlotterReportAdapter extends RecyclerView.Adapter<BlotterReportAdap
     
     static class ReportViewHolder extends RecyclerView.ViewHolder {
         private CardView cardView;
-        private TextView tvCaseNumber, tvIncidentType, tvStatus, tvDate, tvLocation;
-        private View statusIndicator;
+        private TextView tvCaseNumber, tvIncidentType, tvDate, tvLocation;
+        private TextView tvComplainantName, tvAssignedOfficers;
+        private Chip chipStatus;
         
         public ReportViewHolder(@NonNull View itemView) {
             super(itemView);
             cardView = itemView.findViewById(R.id.cardReport);
             tvCaseNumber = itemView.findViewById(R.id.tvCaseNumber);
             tvIncidentType = itemView.findViewById(R.id.tvIncidentType);
-            tvStatus = itemView.findViewById(R.id.tvStatus);
             tvDate = itemView.findViewById(R.id.tvDate);
             tvLocation = itemView.findViewById(R.id.tvLocation);
-            statusIndicator = itemView.findViewById(R.id.statusIndicator);
+            tvComplainantName = itemView.findViewById(R.id.tvComplainantName);
+            tvAssignedOfficers = itemView.findViewById(R.id.tvAssignedOfficers);
+            chipStatus = itemView.findViewById(R.id.chipStatus);
         }
         
         public void bind(BlotterReport report, OnReportClickListener listener) {
             tvCaseNumber.setText(report.getCaseNumber());
             tvIncidentType.setText(report.getIncidentType());
-            tvStatus.setText(report.getStatus());
-            tvLocation.setText("📍 " + report.getLocation());
+            tvLocation.setText(report.getLocation());
+            tvComplainantName.setText(report.getComplainantName() != null ? report.getComplainantName() : "Unknown");
             
             // Format date
             SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
             tvDate.setText(dateFormat.format(new Date(report.getIncidentDate())));
             
-            // Set status color - Color coding for all statuses
-            int statusColor;
-            switch (report.getStatus()) {
-                case "Pending":
-                    // 🔵 Pending - Electric Blue
-                    statusColor = itemView.getContext().getColor(R.color.electric_blue);
-                    break;
-                case "Assigned":
-                    // 🔵 Assigned - Electric Blue
-                    statusColor = itemView.getContext().getColor(R.color.electric_blue);
-                    break;
-                case "Ongoing":
-                case "Under Investigation":
-                    // 🟡 Ongoing - Yellow
-                    statusColor = itemView.getContext().getColor(R.color.warning_yellow);
-                    break;
-                case "Resolved":
-                case "Closed":
-                    // 🟢 Resolved - Green
-                    statusColor = itemView.getContext().getColor(R.color.success_green);
-                    break;
-                default:
-                    // ⚪ Unknown - Gray
-                    statusColor = itemView.getContext().getColor(R.color.text_secondary);
+            // ✅ Set status chip using global utility
+            if (chipStatus != null) {
+                String status = report.getStatus() != null ? report.getStatus() : "Pending";
+                String displayStatus = StatusColorUtil.formatStatusToTitleCase(status);
+                chipStatus.setText(displayStatus);
+                chipStatus.setTextColor(itemView.getContext().getResources().getColor(R.color.white));
+                int statusColor = StatusColorUtil.getStatusColor(status);
+                chipStatus.setChipBackgroundColorResource(statusColor);
             }
             
-            // Set text color and background color for status badge
-            tvStatus.setTextColor(android.graphics.Color.WHITE);  // White text for all badges
+            // Set assigned officers - count the number of officers
+            int officerCount = 0;
             
-            // Create colored background for status badge
-            android.graphics.drawable.GradientDrawable badgeBackground = new android.graphics.drawable.GradientDrawable();
-            badgeBackground.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-            badgeBackground.setColor(statusColor);
-            badgeBackground.setCornerRadius(8);
-            badgeBackground.setStroke(1, android.graphics.Color.argb(50, 255, 255, 255));
-            tvStatus.setBackground(badgeBackground);
-            
-            if (statusIndicator != null) {
-                statusIndicator.setBackgroundColor(statusColor);
+            // Check if there are multiple officers assigned (comma-separated IDs)
+            if (report.getAssignedOfficerIds() != null && !report.getAssignedOfficerIds().isEmpty()) {
+                String[] officerIds = report.getAssignedOfficerIds().split(",");
+                officerCount = officerIds.length;
+                tvAssignedOfficers.setText(String.valueOf(officerCount));
+            } 
+            // Check if there's a single officer assigned
+            else if (report.getAssignedOfficerId() != null && report.getAssignedOfficerId() > 0) {
+                officerCount = 1;
+                tvAssignedOfficers.setText("1");
+            } 
+            // No officers assigned
+            else {
+                tvAssignedOfficers.setText("0");
             }
             
             // Click listener
-            cardView.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onReportClick(report);
-                }
-            });
+            if (cardView != null) {
+                cardView.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onReportClick(report);
+                    }
+                });
+            }
         }
+        
+        // ✅ Using global StatusColorUtil for status formatting and colors
     }
 }

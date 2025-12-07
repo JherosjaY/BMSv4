@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="@color/primary_dark_blue"
-        app:navigationIcon="@drawable/ic_back_arrow"
+        app:navigationIcon="@drawable/ic_arrow_back"
         app:navigationIconTint="@color/text_primary"
         app:title="Case Details"
         app:titleTextColor="@color/text_primary" />
@@ -113,7 +113,7 @@
             android:layout_marginStart="@dimen/spacing_medium"
             android:layout_marginTop="@dimen/spacing_large"
             android:layout_marginBottom="@dimen/spacing_medium"
-            android:text="Incident Information"
+            android:text="📋 Incident Information"
             android:textColor="@color/text_primary"
             android:textSize="16sp"
             android:textStyle="bold" />
@@ -143,7 +143,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Incident Type: "
+                        android:text="📌 Type: "
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -168,7 +168,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Date &amp; Time: "
+                        android:text="📅 Date: "
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -193,7 +193,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Location: "
+                        android:text="📍 Location: "
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -254,7 +254,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/spacing_medium"
             android:layout_marginTop="@dimen/spacing_medium"
-            android:text="Complainant Information"
+            android:text="👤 Complainant Information"
             android:textColor="@color/text_primary"
             android:textSize="18sp"
             android:textStyle="bold" />
@@ -284,7 +284,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Name: "
+                        android:text="👤 Name: "
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -309,7 +309,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Contact: "
+                        android:text="📞 Contact: "
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -334,7 +334,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Address: "
+                        android:text="🏠 Address: "
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -358,7 +358,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/spacing_medium"
             android:layout_marginTop="@dimen/spacing_medium"
-            android:text="Respondent Information"
+            android:text="⚖️ Respondent Information"
             android:textColor="@color/text_primary"
             android:textSize="18sp"
             android:textStyle="bold" />
@@ -389,7 +389,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Name: "
+                        android:text="👤 Name: "
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -414,7 +414,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Alias: "
+                        android:text="🏷️ Alias: "
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -439,7 +439,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Address: "
+                        android:text="🏠 Address: "
                         android:textColor="@color/text_secondary"
                         android:textSize="14sp"
                         android:textStyle="bold" />

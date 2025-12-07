@@ -24,7 +24,7 @@ public interface BlotterReportDao {
     @Query("SELECT * FROM blotter_reports WHERE assignedOfficer = :officerName AND isArchived = 0")
     List<BlotterReport> getReportsByOfficer(String officerName);
     
-    @Query("SELECT * FROM blotter_reports WHERE assignedOfficerIds LIKE '%' || :officerId || '%' AND isArchived = 0")
+    @Query("SELECT * FROM blotter_reports WHERE (assignedOfficerId = :officerId OR assignedOfficerIds LIKE '%' || :officerId || '%') AND isArchived = 0")
     List<BlotterReport> getReportsByOfficerId(int officerId);
     
     @Query("SELECT * FROM blotter_reports WHERE status = :status AND isArchived = 0")
@@ -53,4 +53,11 @@ public interface BlotterReportDao {
     
     @Query("SELECT COUNT(*) FROM blotter_reports WHERE isArchived = 1")
     int getArchivedReportCount();
+    
+    // ✅ New methods for hearing visibility filtering
+    @Query("SELECT * FROM blotter_reports WHERE userId = :userId AND isArchived = 0")
+    List<BlotterReport> getReportsByUserId(int userId);
+    
+    @Query("SELECT * FROM blotter_reports WHERE (assignedOfficerId = :officerId OR assignedOfficerIds LIKE '%' || :officerId || '%') AND isArchived = 0")
+    List<BlotterReport> getReportsByAssignedOfficer(int officerId);
 }

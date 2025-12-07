@@ -70,8 +70,6 @@
         <activity android:name=".ui.activities.RecordsArchiveActivity" android:exported="false" />
         <activity android:name=".ui.activities.AdminProfileActivity" android:exported="false" />
         <activity android:name=".ui.activities.MyAssignedCasesActivity" android:exported="false" />
-        <activity android:name=".ui.activities.HearingsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.QRScannerActivity" android:exported="false" />
         <activity android:name=".ui.activities.SmsNotificationsActivity" android:exported="false" />
         <activity android:name=".ui.activities.OfficerAnalyticsActivity" android:exported="false" />
         <!-- Profile & Settings -->
@@ -84,33 +82,16 @@
             android:exported="false"
             android:launchMode="singleTop"
             android:hardwareAccelerated="true" />
-        <activity android:name=".ui.activities.ViewReportsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.ViewHearingsActivity" android:exported="false" />
 
-        <!-- New Separate Report Screens -->
-        <activity android:name=".ui.activities.ViewAllReportsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.ViewPendingReportsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.ViewAssignedReportsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.ViewOngoingReportsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.ViewResolvedReportsActivity" android:exported="false" />
+        <!-- User Role - Consolidated Screens -->
+        <activity android:name=".ui.activities.UserViewReportsActivity" android:exported="false" />
         
-        <!-- Officer Report View Activities with Chip Navigation -->
-        <activity android:name=".ui.activities.OfficerViewAllReportsActivity_New" android:exported="false" />
-        <activity android:name=".ui.activities.OfficerViewAssignedReportsActivity_New" android:exported="false" />
-        <activity android:name=".ui.activities.OfficerViewOngoingReportsActivity_New" android:exported="false" />
-        <activity android:name=".ui.activities.OfficerViewResolvedReportsActivity_New" android:exported="false" />
-        
-        <!-- Officer Hearings View Activities with Chip Navigation -->
-        <activity android:name=".ui.activities.OfficerViewAllHearingsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.OfficerViewUpcomingHearingsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.OfficerViewCompletedHearingsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.OfficerViewCanceledHearingsActivity" android:exported="false" />
+        <!-- Unified Hearings Activity (works for both User and Officer roles) -->
+        <activity android:name=".ui.activities.HearingsActivity" android:exported="false" />
         
         <!-- Officer Person History View Activity -->
         <activity android:name=".ui.activities.OfficerViewPersonHistoryActivity" android:exported="false" />
         
-        <!-- User Assigned Reports Activity -->
-        <activity android:name=".ui.activities.ViewAssignedReportsActivity" android:exported="false" />
         
         <!-- Admin Report View Activities with Chip Navigation -->
         <activity android:name=".ui.activities.AdminViewAllReportsActivity" android:exported="false" />
@@ -138,31 +119,19 @@
         <activity android:name=".ui.activities.AddEvidenceActivity" android:exported="false" />
         <activity android:name=".ui.activities.AddHearingActivity" android:exported="false" />
         <activity android:name=".ui.activities.AddResolutionActivity" android:exported="false" />
-        <activity android:name=".ui.activities.KPFormsActivity" android:exported="false" />
         <activity android:name=".ui.activities.SummonsManagementActivity" android:exported="false" />
         
-        <!-- Investigation Workflow -->
-        <activity android:name=".ui.activities.InvestigationChecklistActivity" android:exported="false" />
-        
-        <!-- New Separate Hearing Screens -->
-        <activity android:name=".ui.activities.ViewAllHearingsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.ViewUpcomingHearingsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.ViewCompletedHearingsActivity" android:exported="false" />
-        
-        <!-- Alternative In Progress Layout -->
-        <activity android:name=".ui.activities.AdminViewInProgressReportsActivity" android:exported="false" />
+        <!-- Admin Report Oversight & Setup -->
         <activity android:name=".ui.activities.AdminReportOversightActivity" android:exported="false" />
-        <activity android:name=".ui.activities.ConnectedDevicesActivity" android:exported="false" />
         <activity android:name=".ui.activities.AdminSetupActivity" android:exported="false" />
         <activity android:name=".ui.activities.HearingCalendarActivity" android:exported="false" />
-        <activity android:name=".ui.activities.CameraActivity" android:exported="false" />
         <activity android:name=".ui.activities.EvidenceListActivity" android:exported="false" />
-        <activity android:name=".ui.activities.PhotoGalleryActivity" android:exported="false" />
-        <activity android:name=".ui.activities.KPFormsActivity" android:exported="false" />
-        <activity android:name=".ui.activities.LegalDocumentsDashboardActivity" android:exported="false" />
-        <activity android:name=".ui.activities.MediationSessionActivity" android:exported="false" />
-        <activity android:name=".ui.activities.SummonsManagementActivity" android:exported="false" />
-        <activity android:name=".ui.activities.IncidentMapActivity" android:exported="false" />
+        
+
+        <!-- ✅ View Person History Detail Activity -->
+        <activity 
+            android:name=".ui.activities.ViewPersonHistoryDetailActivity" 
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

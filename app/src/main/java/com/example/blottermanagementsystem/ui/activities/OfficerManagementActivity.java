@@ -14,6 +14,10 @@ import com.example.blottermanagementsystem.data.entity.Officer;
 import com.example.blottermanagementsystem.ui.adapters.OfficerAdapter;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
+import com.example.blottermanagementsystem.data.entity.BlotterReport;
+import android.app.NotificationManager;
+import android.content.Context;
+import android.util.Log;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -276,12 +280,42 @@ public class OfficerManagementActivity extends BaseActivity {
     }
     
     private void deleteOfficer(Officer officer) {
-        java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-            database.officerDao().deleteOfficer(officer);
-            
-            runOnUiThread(() -> {
-                loadOfficers(); // Reload the list
-            });
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                // ✅ Get all cases assigned to this officer
+                List<BlotterReport> assignedCases = database.blotterReportDao()
+                    .getReportsByAssignedOfficer(officer.getId());
+                
+                // ✅ Remove officer from all assigned cases
+                if (assignedCases != null && !assignedCases.isEmpty()) {
+                    for (BlotterReport report : assignedCases) {
+                        // Clear the assigned officer
+                        report.setAssignedOfficer(null);
+                        database.blotterReportDao().updateReport(report);
+                        
+                        // ✅ Delete the push notification for this case assignment
+                        NotificationManager notificationManager = 
+                            (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                        if (notificationManager != null) {
+                            notificationManager.cancel(report.getId() + 2000);
+                            Log.i("OfficerMgmt", "✅ Notification cancelled for case " + report.getCaseNumber());
+                        }
+                    }
+                }
+                
+                // ✅ Delete the officer
+                database.officerDao().deleteOfficer(officer);
+                
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Officer deleted and cases unassigned", Toast.LENGTH_SHORT).show();
+                    loadOfficers(); // Reload the list
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Error deleting officer: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e("OfficerMgmt", "Error: " + e.getMessage());
+                });
+            }
         });
     }
     

@@ -15,8 +15,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import com.example.blottermanagementsystem.R;
+import com.example.blottermanagementsystem.utils.PreferencesManager;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
+
+import java.util.concurrent.Executors;
 
 public class EmailVerificationActivity extends AppCompatActivity {
 
@@ -58,6 +61,10 @@ public class EmailVerificationActivity extends AppCompatActivity {
         
         // For testing - set verification code (remove in production)
         verificationCode = "123456";
+        
+        // Disable verify button by default
+        btnVerifyCode.setEnabled(false);
+        btnVerifyCode.setAlpha(0.5f);
     }
 
     private void setSystemBarColors() {
@@ -154,109 +161,98 @@ public class EmailVerificationActivity extends AppCompatActivity {
     }
 
     private void setupCodeInputs() {
+        // ✅ FIXED: Proper OTP input handling with backspace support
+        
         // Code 1 -> 2
-        etCode1.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (s.length() == 1) {
-                    etCode2.requestFocus();
-                }
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
+        setupOTPField(etCode1, null, etCode2);
 
         // Code 2 -> 3
-        etCode2.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (s.length() == 1) {
-                    etCode3.requestFocus();
-                } else if (s.length() == 0) {
-                    etCode1.requestFocus();
-                }
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
+        setupOTPField(etCode2, etCode1, etCode3);
 
         // Code 3 -> 4
-        etCode3.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (s.length() == 1) {
-                    etCode4.requestFocus();
-                } else if (s.length() == 0) {
-                    etCode2.requestFocus();
-                }
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
+        setupOTPField(etCode3, etCode2, etCode4);
 
         // Code 4 -> 5
-        etCode4.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (s.length() == 1) {
-                    etCode5.requestFocus();
-                } else if (s.length() == 0) {
-                    etCode3.requestFocus();
-                }
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
+        setupOTPField(etCode4, etCode3, etCode5);
 
         // Code 5 -> 6
-        etCode5.addTextChangedListener(new TextWatcher() {
+        setupOTPField(etCode5, etCode4, etCode6);
+
+        // Code 6 - last field
+        setupOTPField(etCode6, etCode5, null);
+    }
+
+    private void setupOTPField(TextInputEditText currentField, TextInputEditText previousField, TextInputEditText nextField) {
+        // ✅ FIXED: Proper backspace handling for ALL cases
+        
+        currentField.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // ✅ FIX: Handle both adding and deleting digits
                 if (s.length() == 1) {
-                    etCode6.requestFocus();
-                } else if (s.length() == 0) {
-                    etCode4.requestFocus();
+                    // Digit added - move to next field
+                    if (nextField != null) {
+                        nextField.requestFocus();
+                    }
+                } else if (s.length() == 0 && before == 1) {
+                    // Digit deleted - move to previous field
+                    if (previousField != null) {
+                        previousField.requestFocus();
+                    }
                 }
+                updateVerifyButtonState();
             }
 
             @Override
-            public void afterTextChanged(Editable s) {}
-        });
-
-        // Code 6 - backspace handling
-        etCode6.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (s.length() == 0) {
-                    etCode5.requestFocus();
+            public void afterTextChanged(Editable s) {
+                // ✅ FIX: Limit to 1 digit only
+                if (s.length() > 1) {
+                    s.delete(1, s.length());
                 }
             }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
         });
+        
+        // ✅ FIXED: Add key listener for backspace handling
+        currentField.setOnKeyListener((v, keyCode, event) -> {
+            if (keyCode == android.view.KeyEvent.KEYCODE_DEL && 
+                event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
+                
+                String currentText = currentField.getText().toString();
+                
+                // If field is empty, move to previous field and delete its content
+                if (currentText.isEmpty() && previousField != null) {
+                    previousField.setText("");
+                    previousField.requestFocus();
+                    return true; // Consume the event
+                }
+            }
+            return false;
+        });
+    }
+
+    private void updateVerifyButtonState() {
+        // Get all code values
+        String code1 = etCode1.getText().toString().trim();
+        String code2 = etCode2.getText().toString().trim();
+        String code3 = etCode3.getText().toString().trim();
+        String code4 = etCode4.getText().toString().trim();
+        String code5 = etCode5.getText().toString().trim();
+        String code6 = etCode6.getText().toString().trim();
+        
+        // Check if at least first digit is entered
+        boolean hasFirstDigit = !code1.isEmpty();
+        
+        // Enable button only if first digit is entered
+        if (hasFirstDigit) {
+            btnVerifyCode.setEnabled(true);
+            btnVerifyCode.setAlpha(1.0f);
+        } else {
+            btnVerifyCode.setEnabled(false);
+            btnVerifyCode.setAlpha(0.5f);
+        }
     }
 
     private void verifyCode() {
@@ -286,27 +282,13 @@ public class EmailVerificationActivity extends AppCompatActivity {
     }
 
     private void callVerifyEmailAPI(String code) {
-        // TODO: Replace with actual backend URL
-        String backendUrl = "http://your-backend-url.com/api/email/verify-email-code";
+        // LOCAL OFFLINE VERIFICATION (No backend needed)
+        // For testing: code is "123456"
         
-        try {
-            java.net.URL url = new java.net.URL(backendUrl);
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
-
-            // Create request body
-            String jsonBody = "{\"email\":\"" + userEmail + "\",\"code\":\"" + code + "\"}";
-            
-            try (java.io.OutputStream os = conn.getOutputStream()) {
-                byte[] input = jsonBody.getBytes("utf-8");
-                os.write(input, 0, input.length);
-            }
-
-            int responseCode = conn.getResponseCode();
-            
-            if (responseCode == 200) {
+        // Simulate API call delay
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            // Check if entered code matches verification code
+            if (code.equals(verificationCode)) {
                 showLoading(false);
                 Toast.makeText(this, "Email verified successfully!", Toast.LENGTH_SHORT).show();
                 
@@ -323,29 +305,77 @@ public class EmailVerificationActivity extends AppCompatActivity {
                 Toast.makeText(this, "Invalid verification code. Please try again.", Toast.LENGTH_SHORT).show();
                 clearAllFields();
             }
-            
-            conn.disconnect();
-        } catch (Exception e) {
-            showLoading(false);
-            Toast.makeText(this, "Error verifying code: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            android.util.Log.e("EmailVerification", "API Error", e);
-        }
+        }, 1000); // 1 second delay to simulate API call
     }
 
     private void autoLogin() {
-        // TODO: In production, this would:
-        // 1. Generate JWT token from backend
-        // 2. Store token in SharedPreferences
-        // 3. Set user as logged in
-        // 4. Navigate to profile picture selection (same as normal registration flow)
-
-        Toast.makeText(this, "Auto-login successful!", Toast.LENGTH_SHORT).show();
+        // ✅ FIXED: Save user to database ONLY after successful email verification
         
-        // Navigate to Profile Picture Selection (same as normal registration flow)
-        Intent intent = new Intent(this, ProfilePictureSelectionActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
+        String userEmail = getIntent().getStringExtra("email");
+        String verificationType = getIntent().getStringExtra("type");
+        
+        if ("registration".equals(verificationType)) {
+            // ✅ Registration flow: Save user to database NOW (after email verified)
+            Executors.newSingleThreadExecutor().execute(() -> {
+                try {
+                    PreferencesManager preferencesManager = new PreferencesManager(this);
+                    
+                    // Get temp user data from SharedPreferences
+                    String tempUsername = preferencesManager.getTempUsername();
+                    String tempEmail = preferencesManager.getTempEmail();
+                    String tempPassword = preferencesManager.getTempPassword();
+                    
+                    android.util.Log.d("EmailVerification", "✅ Email verified! Now saving user to database...");
+                    android.util.Log.d("EmailVerification", "  Username: " + tempUsername);
+                    android.util.Log.d("EmailVerification", "  Email: " + tempEmail);
+                    
+                    if (tempUsername != null && tempEmail != null && tempPassword != null) {
+                        // Create user object
+                        com.example.blottermanagementsystem.data.entity.User newUser = 
+                            new com.example.blottermanagementsystem.data.entity.User("User", "Account", tempUsername, tempPassword, "User");
+                        newUser.setEmail(tempEmail);
+                        newUser.setAuthMethod("EMAIL_PASSWORD");
+                        
+                        // Save to database
+                        com.example.blottermanagementsystem.data.database.BlotterDatabase database = 
+                            com.example.blottermanagementsystem.data.database.BlotterDatabase.getDatabase(this);
+                        
+                        long userId = database.userDao().insertUser(newUser);
+                        android.util.Log.d("EmailVerification", "✅ User saved to database with ID: " + userId);
+                        
+                        // Clear temp data
+                        preferencesManager.clearTempUserData();
+                        
+                        // Save to PreferencesManager
+                        preferencesManager.setUserId((int) userId);
+                        preferencesManager.setLoggedIn(true);
+                        preferencesManager.setUserRole("User");
+                        
+                        runOnUiThread(() -> {
+                            // Navigate to Profile Picture Selection
+                            Intent intent = new Intent(this, ProfilePictureSelectionActivity.class);
+                            intent.putExtra("USER_ID", (int) userId);
+                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                            startActivity(intent);
+                            finish();
+                        });
+                    } else {
+                        android.util.Log.e("EmailVerification", "❌ Temp user data not found!");
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "Error: Registration data lost", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("EmailVerification", "❌ Error saving user: " + e.getMessage(), e);
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Error saving account: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        } else {
+            // Password reset flow - just navigate back
+            navigateToResetPassword();
+        }
     }
 
     private void navigateToResetPassword() {
@@ -367,39 +397,12 @@ public class EmailVerificationActivity extends AppCompatActivity {
     }
 
     private void callResendCodeAPI() {
-        // TODO: Replace with actual backend URL
-        String backendUrl = "http://your-backend-url.com/api/email/resend-verification-code";
+        // LOCAL OFFLINE RESEND (No backend needed)
+        // Code remains "123456" for testing
         
-        try {
-            java.net.URL url = new java.net.URL(backendUrl);
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
-
-            // Create request body
-            String jsonBody = "{\"email\":\"" + userEmail + "\"}";
-            
-            try (java.io.OutputStream os = conn.getOutputStream()) {
-                byte[] input = jsonBody.getBytes("utf-8");
-                os.write(input, 0, input.length);
-            }
-
-            int responseCode = conn.getResponseCode();
-            
-            if (responseCode == 200) {
-                Toast.makeText(this, "Verification code resent to " + userEmail, Toast.LENGTH_SHORT).show();
-                clearAllFields();
-                startTimer();
-            } else {
-                Toast.makeText(this, "Failed to resend code. Please try again.", Toast.LENGTH_SHORT).show();
-            }
-            
-            conn.disconnect();
-        } catch (Exception e) {
-            Toast.makeText(this, "Error resending code: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            android.util.Log.e("EmailVerification", "Resend API Error", e);
-        }
+        Toast.makeText(this, "Verification code resent to " + userEmail, Toast.LENGTH_SHORT).show();
+        clearAllFields();
+        startTimer();
     }
 
     private void startTimer() {

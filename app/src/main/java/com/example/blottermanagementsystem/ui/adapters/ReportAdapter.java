@@ -4,12 +4,13 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.entity.BlotterReport;
+import com.example.blottermanagementsystem.utils.StatusColorUtil;
+import java.text.SimpleDateFormat;
 import com.google.android.material.chip.Chip;
 
 import java.util.List;
@@ -98,11 +99,11 @@ public class ReportAdapter extends RecyclerView.Adapter<ReportAdapter.ReportView
                 tvAssignedOfficers.setText("Unassigned");
             }
             
-            // Set status chip - capitalize first letter for display
+            // ✅ Set status chip using global utility
             String status = report.getStatus();
-            String displayStatus = capitalizeStatus(status);
+            String displayStatus = StatusColorUtil.formatStatusToTitleCase(status);
             chipStatus.setText(displayStatus);
-            int statusColor = getStatusColor(status);
+            int statusColor = StatusColorUtil.getStatusColor(status);
             chipStatus.setChipBackgroundColorResource(statusColor);
             
             // Count evidence
@@ -141,32 +142,6 @@ public class ReportAdapter extends RecyclerView.Adapter<ReportAdapter.ReportView
             return uris.split(",").length;
         }
         
-        private String capitalizeStatus(String status) {
-            if (status == null || status.isEmpty()) {
-                return "Pending";
-            }
-            // Capitalize first letter, lowercase the rest
-            return status.substring(0, 1).toUpperCase() + status.substring(1).toLowerCase();
-        }
-        
-        private int getStatusColor(String status) {
-            if (status == null) {
-                return R.color.text_secondary;
-            }
-            // Use case-insensitive comparison without converting to lowercase
-            if ("pending".equalsIgnoreCase(status)) {
-                return R.color.warning_yellow; // Yellow for pending
-            } else if ("assigned".equalsIgnoreCase(status)) {
-                return R.color.info_blue; // Blue for assigned
-            } else if ("ongoing".equalsIgnoreCase(status) || "in-progress".equalsIgnoreCase(status) || "under investigation".equalsIgnoreCase(status)) {
-                return R.color.info_blue; // Blue for ongoing
-            } else if ("resolved".equalsIgnoreCase(status)) {
-                return R.color.success_green; // Green for resolved
-            } else if ("closed".equalsIgnoreCase(status)) {
-                return R.color.text_secondary; // Grey for closed
-            } else {
-                return R.color.warning_yellow; // Default to yellow (pending color)
-            }
-        }
+        // ✅ Using global StatusColorUtil for status formatting and colors
     }
 }

@@ -6,7 +6,7 @@
     android:layout_height="wrap_content"
     android:layout_margin="16dp"
     app:cardBackgroundColor="@color/dark_surface"
-    app:cardCornerRadius="16dp"
+    app:cardCornerRadius="0dp"
     app:cardElevation="8dp"
     app:strokeColor="@color/electric_blue"
     app:strokeWidth="2dp">
@@ -17,15 +17,36 @@
         android:orientation="vertical"
         android:padding="24dp">
 
-        <!-- Title -->
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- Title with Edit Button -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="📅 Hearings"
-            android:textColor="@color/white"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Hearings"
+                android:textColor="@color/white"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <!-- Edit Button at Header Level -->
+            <TextView
+                android:id="@+id/btnEditAllHearings"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:text="✎"
+                android:textSize="18sp"
+                android:textColor="@color/info_blue"
+                android:gravity="center"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Edit Hearing"
+                android:visibility="gone" />
+        </LinearLayout>
 
         <!-- Empty State -->
         <TextView

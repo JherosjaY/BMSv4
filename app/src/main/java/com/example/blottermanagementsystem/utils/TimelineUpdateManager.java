@@ -79,13 +79,13 @@ public class TimelineUpdateManager {
                 steps.add(step3);
                 Log.d(TAG, "   Step 3 (Investigation Started): " + (hasActions ? "⏳ IN PROGRESS" : "⭕ PENDING"));
                 
-                // Step 4: Witnesses & Evidence Collected (Completed if all 3 present)
-                InvestigationStep step4 = new InvestigationStep("4", "Witnesses & Evidence Collected", "Gathering case information", "evidence_collected");
-                boolean allEvidenceCollected = witnessCount > 0 && suspectCount > 0 && evidenceCount > 0;
-                if (allEvidenceCollected) {
+                // Step 4: Witnesses & Suspects (Completed if both witnesses AND suspects present)
+                InvestigationStep step4 = new InvestigationStep("4", "Witnesses & Suspects", "Gathering case information", "evidence_collected");
+                boolean allWitnessesAndSuspects = witnessCount > 0 && suspectCount > 0;
+                if (allWitnessesAndSuspects) {
                     step4.setCompleted(true);
                     step4.setInProgress(false);
-                } else if (witnessCount > 0 || suspectCount > 0 || evidenceCount > 0) {
+                } else if (witnessCount > 0 || suspectCount > 0) {
                     step4.setCompleted(false);
                     step4.setInProgress(true);
                 } else {
@@ -93,7 +93,7 @@ public class TimelineUpdateManager {
                     step4.setInProgress(false);
                 }
                 steps.add(step4);
-                Log.d(TAG, "   Step 4 (Evidence Collected): " + (allEvidenceCollected ? "✅ COMPLETED" : (step4.isInProgress() ? "⏳ IN PROGRESS" : "⭕ PENDING")));
+                Log.d(TAG, "   Step 4 (Witnesses & Suspects): " + (allWitnessesAndSuspects ? "✅ COMPLETED" : (step4.isInProgress() ? "⏳ IN PROGRESS" : "⭕ PENDING")));
                 
                 // Step 5: Hearing Scheduled (In-progress if hearing created)
                 InvestigationStep step5 = new InvestigationStep("5", "Hearing Scheduled", "Court hearing date set", "hearing_scheduled");

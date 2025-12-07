@@ -520,4 +520,45 @@ public class PreferencesManager {
             .remove(KEY_IS_GOOGLE_ACCOUNT)
             .apply();
     }
+    
+    // ==================== Temporary User Data (For Email Verification) ====================
+    // ✅ FIXED: Store user data temporarily during registration
+    // User is ONLY saved to database AFTER successful email verification
+    
+    private static final String KEY_TEMP_USERNAME = "temp_username";
+    private static final String KEY_TEMP_EMAIL = "temp_email";
+    private static final String KEY_TEMP_PASSWORD = "temp_password";
+    
+    public void setTempUsername(String username) {
+        prefs.edit().putString(KEY_TEMP_USERNAME, username).apply();
+    }
+    
+    public String getTempUsername() {
+        return prefs.getString(KEY_TEMP_USERNAME, null);
+    }
+    
+    public void setTempEmail(String email) {
+        prefs.edit().putString(KEY_TEMP_EMAIL, email).apply();
+    }
+    
+    public String getTempEmail() {
+        return prefs.getString(KEY_TEMP_EMAIL, null);
+    }
+    
+    public void setTempPassword(String password) {
+        prefs.edit().putString(KEY_TEMP_PASSWORD, password).apply();
+    }
+    
+    public String getTempPassword() {
+        return prefs.getString(KEY_TEMP_PASSWORD, null);
+    }
+    
+    public void clearTempUserData() {
+        prefs.edit()
+            .remove(KEY_TEMP_USERNAME)
+            .remove(KEY_TEMP_EMAIL)
+            .remove(KEY_TEMP_PASSWORD)
+            .apply();
+        android.util.Log.d("PreferencesManager", "✅ Cleared temp user data");
+    }
 }

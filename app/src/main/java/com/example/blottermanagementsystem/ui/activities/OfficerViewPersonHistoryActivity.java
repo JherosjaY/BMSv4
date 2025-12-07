@@ -10,9 +10,14 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.PersonHistory;
+import com.example.blottermanagementsystem.data.entity.Suspect;
+import com.example.blottermanagementsystem.ui.adapters.PersonHistoryAdapter;
 import com.google.android.material.chip.Chip;
+import android.widget.Toast;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 public class OfficerViewPersonHistoryActivity extends BaseActivity {
@@ -32,6 +37,7 @@ public class OfficerViewPersonHistoryActivity extends BaseActivity {
     private List<PersonHistory> allHistory = new ArrayList<>();
     private List<PersonHistory> filteredHistory = new ArrayList<>();
     private String currentFilter = "All";
+    private PersonHistoryAdapter historyAdapter;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,8 +80,17 @@ public class OfficerViewPersonHistoryActivity extends BaseActivity {
         chipSuspect = findViewById(R.id.chipSuspect);
         chipRespondent = findViewById(R.id.chipRespondent);
         
-        // Setup RecyclerView
+        // ✅ Setup RecyclerView with PersonHistoryAdapter
         recyclerHistory.setLayoutManager(new LinearLayoutManager(this));
+        historyAdapter = new PersonHistoryAdapter(filteredHistory, this);
+        recyclerHistory.setAdapter(historyAdapter);
+        
+        // ✅ Set click listener to open full case details
+        historyAdapter.setOnHistoryClickListener(history -> {
+            android.content.Intent intent = new android.content.Intent(this, ViewPersonHistoryDetailActivity.class);
+            intent.putExtra("reportId", history.getBlotterReportId());
+            startActivity(intent);
+        });
         
         // Set person name
         tvPersonName.setText(personName != null ? personName : "Unknown Person");
@@ -186,9 +201,101 @@ public class OfficerViewPersonHistoryActivity extends BaseActivity {
                 }
             }
             
+            // ✅ UPDATE ADAPTER WITH FILTERED DATA
+            if (historyAdapter != null) {
+                historyAdapter.updateData(filteredHistory);
+            }
+            
+            // ✅ LOAD ACCOMPLICES FOR EACH CASE
+            loadAccomplices();
             updateEmptyState();
         } catch (Exception e) {
             android.util.Log.e("OfficerViewPersonHistory", "Error filtering history: " + e.getMessage());
+        }
+    }
+    
+    // ✅ LOAD ACCOMPLICES FROM SAME CASES
+    private void loadAccomplices() {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                Map<Integer, List<Suspect>> accomplicesByCase = new HashMap<>();
+                
+                // For each case in person's history
+                for (PersonHistory history : filteredHistory) {
+                    int reportId = history.getBlotterReportId();
+                    
+                    // Get all suspects in this case
+                    List<Suspect> caseSuspects = database.suspectDao().getSuspectsByReport(reportId);
+                    
+                    if (caseSuspects != null && !caseSuspects.isEmpty()) {
+                        // Filter out the current person
+                        List<Suspect> accomplices = new ArrayList<>();
+                        for (Suspect suspect : caseSuspects) {
+                            if (suspect.getId() != personId) {
+                                accomplices.add(suspect);
+                            }
+                        }
+                        
+                        if (!accomplices.isEmpty()) {
+                            accomplicesByCase.put(reportId, accomplices);
+                            
+                            // Log accomplices found
+                            android.util.Log.d("OfficerViewPersonHistory", 
+                                "Case #" + reportId + " has " + accomplices.size() + " accomplices");
+                            
+                            for (Suspect accomplice : accomplices) {
+                                android.util.Log.d("OfficerViewPersonHistory", 
+                                    "  - Accomplice: " + accomplice.getName());
+                            }
+                        }
+                    }
+                }
+                
+                // Store accomplices for display
+                runOnUiThread(() -> {
+                    if (!accomplicesByCase.isEmpty()) {
+                        showAccomplicesInfo(accomplicesByCase);
+                    }
+                });
+                
+            } catch (Exception e) {
+                android.util.Log.e("OfficerViewPersonHistory", "Error loading accomplices: " + e.getMessage());
+            }
+        });
+    }
+    
+    // ✅ SHOW ACCOMPLICES INFO
+    private void showAccomplicesInfo(Map<Integer, List<Suspect>> accomplicesByCase) {
+        try {
+            StringBuilder accompliceInfo = new StringBuilder();
+            accompliceInfo.append("Related Suspects Found:\n\n");
+            
+            for (Map.Entry<Integer, List<Suspect>> entry : accomplicesByCase.entrySet()) {
+                int caseId = entry.getKey();
+                List<Suspect> accomplices = entry.getValue();
+                
+                accompliceInfo.append("Case #").append(caseId).append(":\n");
+                for (Suspect accomplice : accomplices) {
+                    accompliceInfo.append("  • ").append(accomplice.getName());
+                    if (accomplice.getAlias() != null && !accomplice.getAlias().isEmpty()) {
+                        accompliceInfo.append(" (").append(accomplice.getAlias()).append(")");
+                    }
+                    accompliceInfo.append("\n");
+                }
+                accompliceInfo.append("\n");
+            }
+            
+            android.util.Log.d("OfficerViewPersonHistory", "Accomplices Info:\n" + accompliceInfo.toString());
+            
+            // Show toast with accomplice count
+            int totalAccomplices = accomplicesByCase.values().stream()
+                .mapToInt(List::size)
+                .sum();
+            
+            Toast.makeText(this, "Found " + totalAccomplices + " related suspects", Toast.LENGTH_SHORT).show();
+            
+        } catch (Exception e) {
+            android.util.Log.e("OfficerViewPersonHistory", "Error showing accomplices: " + e.getMessage());
         }
     }
     

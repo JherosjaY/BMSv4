@@ -18,7 +18,7 @@ public class AdminDashboardActivity extends BaseActivity {
     
     private PreferencesManager preferencesManager;
     private BlotterDatabase database;
-    private TextView tvWelcome, tvTotalUsers, tvTotalOfficers, tvTotalReports, tvPendingReports;
+    private TextView tvTotalUsers, tvTotalOfficers, tvTotalReports, tvPendingReports;
     private TextView tvNotificationBadge;
     private ImageButton btnNotifications, btnProfile;
     private CardView cardManageUsers, cardManageOfficers, cardViewReports, cardSendNotification;
@@ -43,7 +43,6 @@ public class AdminDashboardActivity extends BaseActivity {
     }
     
     private void initViews() {
-        tvWelcome = findViewById(R.id.tvWelcome);
         tvTotalUsers = findViewById(R.id.tvTotalUsers);
         tvTotalOfficers = findViewById(R.id.tvTotalOfficers);
         tvTotalReports = findViewById(R.id.tvTotalReports);
@@ -96,9 +95,6 @@ public class AdminDashboardActivity extends BaseActivity {
     }
     
     private void loadDashboard() {
-        String firstName = preferencesManager.getFirstName();
-        tvWelcome.setText("Welcome back, Admin " + firstName + "!");
-        
         // Show loading for admin dashboard
         com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Loading dashboard...");
         

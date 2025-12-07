@@ -18,6 +18,14 @@ public interface PersonDao {
     @Query("SELECT * FROM person WHERE (firstName || ' ' || lastName) = :fullName AND isActive = 1 LIMIT 1")
     Person getPersonByName(String fullName);
     
+    // ✅ Case-insensitive matching (HYBRID APPROACH - Option 1)
+    @Query("SELECT * FROM person WHERE LOWER(TRIM(firstName || ' ' || lastName)) = LOWER(TRIM(:fullName)) AND isActive = 1 LIMIT 1")
+    Person getPersonByNameIgnoreCase(String fullName);
+    
+    // ✅ Search for similar names (HYBRID APPROACH - Option 3)
+    @Query("SELECT * FROM person WHERE LOWER(firstName || ' ' || lastName) LIKE '%' || LOWER(:searchTerm) || '%' AND isActive = 1 ORDER BY firstName, lastName")
+    List<Person> searchPersonByNameSimilar(String searchTerm);
+    
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     long insertPerson(Person person);
     

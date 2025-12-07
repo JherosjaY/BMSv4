@@ -29,10 +29,14 @@ public class User {
     private String resetCode;
     private long resetCodeExpiry;
     private boolean hasSeenTooltips;
+    
+    // ✅ Track authentication method: "EMAIL_PASSWORD" or "GOOGLE"
+    private String authMethod;
 
     // No-arg constructor required by Room
     public User() {
         this.hasSeenTooltips = false;
+        this.authMethod = "EMAIL_PASSWORD"; // Default
     }
 
     @Ignore
@@ -223,6 +227,15 @@ public class User {
     
     public boolean hasSeenTooltips() {
         return hasSeenTooltips;
+    }
+    
+    // ✅ Authentication method getters and setters
+    public String getAuthMethod() {
+        return authMethod;
+    }
+    
+    public void setAuthMethod(String authMethod) {
+        this.authMethod = authMethod;
     }
     
     public void setHasSeenTooltips(boolean hasSeenTooltips) {

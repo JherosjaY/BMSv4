@@ -63,10 +63,8 @@ public class EvidenceListActivity extends BaseActivity {
         
         recyclerView.setLayoutManager(new GridLayoutManager(this, 2));
         adapter = new EvidenceAdapter(evidence -> {
-            // Open photo gallery to view evidence
-            Intent intent = new Intent(this, PhotoGalleryActivity.class);
-            intent.putExtra("EVIDENCE_ID", evidence.getId());
-            startActivity(intent);
+            // View evidence details
+            Toast.makeText(this, "Evidence: " + evidence.getId(), Toast.LENGTH_SHORT).show();
         });
         recyclerView.setAdapter(adapter);
     }

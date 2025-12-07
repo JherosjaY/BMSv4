@@ -10,15 +10,32 @@
     android:focusable="true"
     android:background="@drawable/selectable_item_background">
 
-    <!-- Checkbox -->
-    <CheckBox
-        android:id="@+id/checkbox"
+    <!-- Checkbox Container -->
+    <FrameLayout
         android:layout_width="24dp"
         android:layout_height="24dp"
-        android:layout_marginEnd="12dp"
-        android:buttonTint="@color/electric_blue"
-        android:clickable="true"
-        android:focusable="true" />
+        android:layout_marginEnd="12dp">
+        
+        <CheckBox
+            android:id="@+id/checkbox"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:buttonTint="@color/electric_blue"
+            android:clickable="true"
+            android:focusable="true" />
+        
+        <!-- Checkmark overlay -->
+        <TextView
+            android:id="@+id/checkmarkIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="✓"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <!-- User Info -->
     <LinearLayout

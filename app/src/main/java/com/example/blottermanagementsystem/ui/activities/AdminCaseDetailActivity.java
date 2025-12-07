@@ -253,7 +253,8 @@ public class AdminCaseDetailActivity extends BaseActivity {
                 boolean isInvestigationStarted = currentReport != null && 
                     currentReport.getStatus() != null && 
                     (currentReport.getStatus().equalsIgnoreCase("ONGOING") || 
-                     currentReport.getStatus().equalsIgnoreCase("IN PROGRESS"));
+                     currentReport.getStatus().equalsIgnoreCase("IN PROGRESS") ||
+                     currentReport.getStatus().equalsIgnoreCase("RESOLVED"));
                 
                 step3.setCompleted(false);
                 if (isInvestigationStarted) {
@@ -272,25 +273,25 @@ public class AdminCaseDetailActivity extends BaseActivity {
                 }
                 investigationSteps.add(step3);
                 
-                // Step 4: Witnesses & Evidence Collected
-                // ✅ Check if witness, suspect, AND evidence all exist
-                InvestigationStep step4 = new InvestigationStep("4", "Witnesses & Evidence Collected", "Gathering case information", "evidence_collected");
+                // Step 4: Witnesses & Suspects
+                // ✅ Check if witness AND suspect both exist
+                InvestigationStep step4 = new InvestigationStep("4", "Witnesses & Suspects", "Gathering case information", "evidence_collected");
                 int witnessCount = database.witnessDao().getWitnessCountByReport(reportId);
                 int suspectCount = database.suspectDao().getSuspectCountByReport(reportId);
                 int evidenceCount = database.evidenceDao().getEvidenceCountByReport(reportId);
                 
-                if (witnessCount > 0 && suspectCount > 0 && evidenceCount > 0) {
-                    // All 3 collected - COMPLETED
+                if (witnessCount > 0 && suspectCount > 0) {
+                    // Both witness and suspect collected - COMPLETED
                     step4.setCompleted(true);
                     step4.setInProgress(false);
-                    android.util.Log.d("AdminCaseDetail", "✅ Step 4: COMPLETED (all witness, suspect, evidence present)");
-                } else if (isInvestigationStarted) {
-                    // Investigation started - show as IN PROGRESS (hourglass - current active step)
+                    android.util.Log.d("AdminCaseDetail", "✅ Step 4: COMPLETED (witness and suspect present)");
+                } else if (witnessCount > 0 || suspectCount > 0) {
+                    // At least one collected - show as IN PROGRESS (hourglass - current active step)
                     step4.setCompleted(false);
                     step4.setInProgress(true);
-                    android.util.Log.d("AdminCaseDetail", "⏳ Step 4: IN PROGRESS (collecting W:" + witnessCount + " S:" + suspectCount + " E:" + evidenceCount + ")");
+                    android.util.Log.d("AdminCaseDetail", "⏳ Step 4: IN PROGRESS (collecting W:" + witnessCount + " S:" + suspectCount + ")");
                 } else {
-                    // Investigation not started - PENDING
+                    // Neither collected - PENDING
                     step4.setCompleted(false);
                     step4.setInProgress(false);
                     android.util.Log.d("AdminCaseDetail", "⭕ Step 4: PENDING");
@@ -1166,4 +1167,5 @@ public class AdminCaseDetailActivity extends BaseActivity {
             // No need to call refreshInvestigationTimeline() here to avoid duplication
         }
     }
+    
 }

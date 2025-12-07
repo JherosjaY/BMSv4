@@ -156,6 +156,7 @@ public class NotificationsActivity extends BaseActivity {
                         adapter = new NotificationAdapter(notifications, 
                             this::onNotificationClick,
                             this::onNotificationLongClick);
+                        adapter.setViewDetailsListener(this::showNotificationDetails);
                         recyclerView.setAdapter(adapter);
                         android.util.Log.d("NotificationsActivity", "✅ Adapter set successfully");
                     } catch (Exception e) {
@@ -243,43 +244,11 @@ public class NotificationsActivity extends BaseActivity {
                 return;
             }
             
-            android.util.Log.d("NotificationsActivity", "📱 Notification clicked: " + notification.getTitle());
-            android.util.Log.d("NotificationsActivity", "CaseId: " + notification.getCaseId());
-            
-            // Mark as read and update UI
-            Executors.newSingleThreadExecutor().execute(() -> {
-                try {
-                    notification.setRead(true);
-                    database.notificationDao().updateNotification(notification);
-                    android.util.Log.d("NotificationsActivity", "✅ Notification marked as read");
-                    
-                    // Update UI to hide blue dot
-                    runOnUiThread(() -> {
-                        if (adapter != null) {
-                            adapter.notifyDataSetChanged();
-                            android.util.Log.d("NotificationsActivity", "✅ UI updated - blue dot hidden");
-                        }
-                    });
-                } catch (Exception e) {
-                    android.util.Log.e("NotificationsActivity", "❌ Error marking as read: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            });
-            
-            // Navigate to case if caseId exists
-            if (notification.getCaseId() != null && notification.getCaseId() > 0) {
-                android.util.Log.d("NotificationsActivity", "→ Opening ReportDetailActivity for caseId: " + notification.getCaseId());
-                Intent intent = new Intent(this, ReportDetailActivity.class);
-                intent.putExtra("REPORT_ID", notification.getCaseId());
-                startActivity(intent);
-            } else {
-                android.util.Log.d("NotificationsActivity", "→ Showing toast message");
-                Toast.makeText(this, notification.getMessage(), Toast.LENGTH_SHORT).show();
-            }
+            // In normal mode, card click opens full message dialog
+            showNotificationDetails(notification);
         } catch (Exception e) {
-            android.util.Log.e("NotificationsActivity", "❌❌❌ onNotificationClick FAILED: " + e.getMessage());
+            android.util.Log.e("NotificationsActivity", "❌ Error in onNotificationClick: " + e.getMessage());
             e.printStackTrace();
-            Toast.makeText(this, "Error opening notification: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
     
@@ -340,40 +309,34 @@ public class NotificationsActivity extends BaseActivity {
         int userId = preferencesManager.getUserId();
         String userRole = preferencesManager.getUserRole();
         
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Delete Notifications")
-            .setMessage("Delete " + selectedNotifications.size() + " notification(s)?")
-            .setPositiveButton("DELETE", (dialog, which) -> {
-                Executors.newSingleThreadExecutor().execute(() -> {
-                    int deletedCount = 0;
-                    
-                    android.util.Log.d("NotificationsActivity", "🗑️ Delete - UserId: " + userId + ", Role: " + userRole);
-                    
-                    for (int id : selectedNotifications) {
-                        Notification notification = database.notificationDao().getNotificationById(id);
-                        
-                        // SECURITY: Only delete if notification belongs to current user
-                        if (notification != null && notification.getUserId() == userId) {
-                            database.notificationDao().deleteNotification(notification);
-                            deletedCount++;
-                            android.util.Log.d("NotificationsActivity", "✓ Deleted notification #" + id + " (belongs to userId: " + userId + ")");
-                        } else if (notification != null) {
-                            android.util.Log.w("NotificationsActivity", "⚠️ BLOCKED: Attempted to delete notification #" + id + " belonging to userId: " + notification.getUserId() + " (current user: " + userId + ")");
-                        }
-                    }
-                    
-                    final int finalDeletedCount = deletedCount;
-                    runOnUiThread(() -> {
-                        Toast.makeText(this, finalDeletedCount + " notification(s) deleted", Toast.LENGTH_SHORT).show();
-                        selectedNotifications.clear();
-                        isSelectionMode = false;
-                        updateToolbarForSelectionMode();
-                        loadNotifications();
-                    });
-                });
-            })
-            .setNegativeButton("CANCEL", null)
-            .show();
+        // ✅ Delete directly without confirmation dialog
+        Executors.newSingleThreadExecutor().execute(() -> {
+            int deletedCount = 0;
+            
+            android.util.Log.d("NotificationsActivity", "🗑️ Delete - UserId: " + userId + ", Role: " + userRole);
+            
+            for (int id : selectedNotifications) {
+                Notification notification = database.notificationDao().getNotificationById(id);
+                
+                // SECURITY: Only delete if notification belongs to current user
+                if (notification != null && notification.getUserId() == userId) {
+                    database.notificationDao().deleteNotification(notification);
+                    deletedCount++;
+                    android.util.Log.d("NotificationsActivity", "✓ Deleted notification #" + id + " (belongs to userId: " + userId + ")");
+                } else if (notification != null) {
+                    android.util.Log.w("NotificationsActivity", "⚠️ BLOCKED: Attempted to delete notification #" + id + " belonging to userId: " + notification.getUserId() + " (current user: " + userId + ")");
+                }
+            }
+            
+            final int finalDeletedCount = deletedCount;
+            runOnUiThread(() -> {
+                Toast.makeText(this, finalDeletedCount + " notification(s) deleted", Toast.LENGTH_SHORT).show();
+                selectedNotifications.clear();
+                isSelectionMode = false;
+                updateToolbarForSelectionMode();
+                loadNotifications();
+            });
+        });
     }
     
     @Override
@@ -397,6 +360,77 @@ public class NotificationsActivity extends BaseActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+    
+    private void showNotificationDetails(Notification notification) {
+        // Create a dialog to show full notification message
+        android.widget.LinearLayout dialogView = new android.widget.LinearLayout(this);
+        dialogView.setOrientation(android.widget.LinearLayout.VERTICAL);
+        dialogView.setPadding(24, 24, 24, 24);
+        
+        // Title
+        android.widget.TextView tvTitle = new android.widget.TextView(this);
+        tvTitle.setText(notification.getTitle());
+        tvTitle.setTextSize(18);
+        tvTitle.setTextColor(android.graphics.Color.WHITE);
+        tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        tvTitle.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        dialogView.addView(tvTitle);
+        
+        // Divider
+        android.view.View divider = new android.view.View(this);
+        divider.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            2
+        ));
+        divider.setBackgroundColor(androidx.core.content.ContextCompat.getColor(this, R.color.electric_blue));
+        android.widget.LinearLayout.LayoutParams dividerParams = 
+            (android.widget.LinearLayout.LayoutParams) divider.getLayoutParams();
+        dividerParams.setMargins(0, 16, 0, 16);
+        divider.setLayoutParams(dividerParams);
+        dialogView.addView(divider);
+        
+        // Full Message
+        android.widget.TextView tvMessage = new android.widget.TextView(this);
+        tvMessage.setText(notification.getMessage());
+        tvMessage.setTextSize(14);
+        tvMessage.setTextColor(android.graphics.Color.WHITE);
+        tvMessage.setLineSpacing(1.5f, 1.5f);
+        tvMessage.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        dialogView.addView(tvMessage);
+        
+        // Timestamp
+        android.widget.TextView tvTime = new android.widget.TextView(this);
+        java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("MMM dd, yyyy hh:mm a", java.util.Locale.getDefault());
+        tvTime.setText(dateFormat.format(new java.util.Date(notification.getTimestamp())));
+        tvTime.setTextSize(12);
+        tvTime.setTextColor(android.graphics.Color.parseColor("#60a5fa"));
+        tvTime.setTypeface(null, android.graphics.Typeface.ITALIC);
+        android.widget.LinearLayout.LayoutParams timeParams = new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        timeParams.setMargins(0, 16, 0, 0);
+        tvTime.setLayoutParams(timeParams);
+        dialogView.addView(tvTime);
+        
+        // Create dialog
+        androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setPositiveButton("Close", null)
+            .create();
+        
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(R.drawable.dialog_background);
+        }
+        
+        dialog.show();
     }
     
     @Override

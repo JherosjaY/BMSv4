@@ -57,7 +57,7 @@
 
             <TextView
                 android:id="@+id/tvMessage"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:ellipsize="end"
@@ -66,13 +66,27 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp" />
 
+            <!-- View Details Button -->
+            <TextView
+                android:id="@+id/tvViewDetails"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="View Details"
+                android:textColor="@android:color/holo_blue_light"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <!-- Date and Time -->
             <TextView
                 android:id="@+id/tvTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:text="2 hours ago"
-                android:textColor="@color/electric_blue"
+                android:textColor="@android:color/holo_blue_light"
                 android:textSize="11sp"
                 android:textStyle="italic" />
         </LinearLayout>

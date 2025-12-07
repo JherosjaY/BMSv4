@@ -60,10 +60,11 @@
     
     <!-- DatePicker & TimePicker Dialog Theme -->
     <style name="Theme.App.DatePickerDialog" parent="android:Theme.Material.Dialog">
-        <item name="android:colorAccent">@color/electric_blue</item>
+        <item name="android:colorPrimary">@color/bright_blue</item>
+        <item name="android:colorAccent">@color/bright_blue</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
-        <item name="android:colorControlActivated">@color/electric_blue</item>
+        <item name="android:colorControlActivated">@color/bright_blue</item>
         <item name="android:datePickerStyle">@style/DatePickerStyle</item>
         <item name="android:windowBackground">@color/card_background</item>
         <item name="android:colorBackground">@color/card_background</item>
@@ -144,7 +145,17 @@
         <item name="android:headerTimeTextAppearance">@style/TimePickerHeaderTextAppearance</item>
         <item name="android:numbersTextColor">@color/text_primary</item>
         <item name="android:numbersBackgroundColor">@color/card_background</item>
-        <item name="android:numbersSelectorColor">@color/electric_blue</item>
+        <item name="android:numbersSelectorColor">@color/bright_blue</item>
+    </style>
+    
+    <!-- Material3 TimePicker Theme - Bright Blue -->
+    <style name="Material3TimePickerTheme" parent="Theme.Material3.Dark.Dialog">
+        <item name="colorPrimary">@color/bright_blue</item>
+        <item name="colorSecondary">@color/bright_blue</item>
+        <item name="colorTertiary">@color/bright_blue</item>
+        <item name="android:colorAccent">@color/bright_blue</item>
+        <item name="android:colorControlActivated">@color/bright_blue</item>
+        <item name="colorControlActivated">@color/bright_blue</item>
     </style>
     
     <style name="CalendarWeekDayTextAppearance" parent="android:TextAppearance.Material.Body1">

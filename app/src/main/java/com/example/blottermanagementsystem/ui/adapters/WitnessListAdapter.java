@@ -39,7 +39,7 @@ public class WitnessListAdapter extends RecyclerView.Adapter<WitnessListAdapter.
         Witness witness = witnessList.get(position);
         
         holder.tvName.setText(witness.getName());
-        holder.tvContactInfo.setText("📞 " + (witness.getContactNumber() != null ? witness.getContactNumber() : "N/A"));
+        holder.tvContactInfo.setText(witness.getContactNumber() != null && !witness.getContactNumber().isEmpty() ? witness.getContactNumber() : "N/A");
         holder.tvStatement.setText(witness.getStatement() != null ? witness.getStatement() : "");
         holder.tvRecordedBy.setText("Recorded by: Officer");
         

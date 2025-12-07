@@ -43,9 +43,18 @@ public class ViewResolutionDialogFragment extends DialogFragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Material_Dialog_MinWidth);
+        setStyle(DialogFragment.STYLE_NO_FRAME, android.R.style.Theme_Material_Dialog_MinWidth);
         if (getArguments() != null) {
             reportId = getArguments().getInt("report_id");
+        }
+    }
+    
+    @Override
+    public void onStart() {
+        super.onStart();
+        // ✅ Set dim effect (0.5f = 50% dim, looks nice)
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setDimAmount(0.5f);
         }
     }
     
@@ -92,7 +101,8 @@ public class ViewResolutionDialogFragment extends DialogFragment {
                                 tvResolutionType.setText(resolution.getResolutionType() != null ? resolution.getResolutionType() : "");
                                 tvDescription.setText(resolution.getResolutionDetails() != null ? resolution.getResolutionDetails() : "");
                                 tvDocumentedBy.setText("Documented by: Officer");
-                                tvNotes.setText(resolution.getResolutionDetails() != null ? resolution.getResolutionDetails() : "");
+                                // ✅ Hide notes field - description is sufficient
+                                tvNotes.setVisibility(View.GONE);
                                 
                                 // Format date
                                 SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault());

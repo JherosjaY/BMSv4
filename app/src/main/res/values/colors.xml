@@ -24,6 +24,7 @@
     <!-- App Colors - original Theme -->
     <color name="splash_background">#0f172a</color>
     <color name="electric_blue">#1e40af</color>
+    <color name="bright_blue">#3b82f6</color>
     
     <!-- Original Button Colors -->
     <color name="button_primary">#3b82f6</color>        <!-- Blue -->

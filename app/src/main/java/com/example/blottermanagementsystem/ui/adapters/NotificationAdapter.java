@@ -19,6 +19,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     private List<Notification> notificationList;
     private OnNotificationClickListener listener;
     private OnNotificationLongClickListener longClickListener;
+    private OnViewDetailsClickListener viewDetailsListener;
     private SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
     private boolean isSelectionMode = false;
     private List<Integer> selectedNotifications = new ArrayList<>();
@@ -31,12 +32,24 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         void onLongClick(Notification notification);
     }
     
+    public interface OnViewDetailsClickListener {
+        void onViewDetails(Notification notification);
+    }
+    
+    public interface OnNotificationCardClickListener {
+        void onCardClick(Notification notification);
+    }
+    
     public NotificationAdapter(List<Notification> notificationList, 
                               OnNotificationClickListener listener,
                               OnNotificationLongClickListener longClickListener) {
         this.notificationList = notificationList;
         this.listener = listener;
         this.longClickListener = longClickListener;
+    }
+    
+    public void setViewDetailsListener(OnViewDetailsClickListener viewDetailsListener) {
+        this.viewDetailsListener = viewDetailsListener;
     }
     
     @NonNull
@@ -80,13 +93,33 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         // Slightly different opacity for read notifications
         holder.itemView.setAlpha(notification.isRead() ? 0.7f : 1.0f);
         
-        holder.itemView.setOnClickListener(v -> listener.onClick(notification));
+        // Card click: Open full message dialog (if not in selection mode)
+        holder.itemView.setOnClickListener(v -> {
+            if (isSelectionMode) {
+                listener.onClick(notification);
+            } else {
+                // Open full message dialog
+                if (viewDetailsListener != null) {
+                    viewDetailsListener.onViewDetails(notification);
+                }
+            }
+        });
+        
         holder.itemView.setOnLongClickListener(v -> {
             if (longClickListener != null) {
                 longClickListener.onLongClick(notification);
             }
             return true;
         });
+        
+        // View Details click listener (same as card click)
+        if (holder.tvViewDetails != null) {
+            holder.tvViewDetails.setOnClickListener(v -> {
+                if (viewDetailsListener != null) {
+                    viewDetailsListener.onViewDetails(notification);
+                }
+            });
+        }
     }
     
     public void setSelectionMode(boolean selectionMode) {
@@ -106,7 +139,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     }
     
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvTitle, tvMessage, tvDate;
+        TextView tvTitle, tvMessage, tvDate, tvViewDetails;
         View unreadIndicator;
         CheckBox checkBox;
         
@@ -115,6 +148,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             tvTitle = itemView.findViewById(R.id.tvTitle);
             tvMessage = itemView.findViewById(R.id.tvMessage);
             tvDate = itemView.findViewById(R.id.tvTime);
+            tvViewDetails = itemView.findViewById(R.id.tvViewDetails);
             unreadIndicator = itemView.findViewById(R.id.unreadIndicator);
             checkBox = itemView.findViewById(R.id.checkBox);
         }

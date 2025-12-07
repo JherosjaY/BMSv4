@@ -277,8 +277,8 @@ public class UserDashboardActivity extends BaseActivity {
             closeFabMenu();
             // Add small delay to prevent black flicker
             v.postDelayed(() -> {
-                Intent intent = new Intent(this, ViewAllReportsActivity.class);
-                intent.putExtra("officer_filter", false);
+                Intent intent = new Intent(this, UserViewReportsActivity.class);
+                intent.putExtra("filter_type", "ALL");
                 startActivity(intent);
                 overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
             }, 150);
@@ -288,7 +288,8 @@ public class UserDashboardActivity extends BaseActivity {
             closeFabMenu();
             // Add small delay to prevent black flicker
             v.postDelayed(() -> {
-                Intent intent = new Intent(this, ViewAllHearingsActivity.class);
+                Intent intent = new Intent(this, HearingsActivity.class);
+                intent.putExtra("filter_type", "ALL");
                 startActivity(intent);
                 overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
             }, 150);
@@ -342,13 +343,13 @@ public class UserDashboardActivity extends BaseActivity {
                     try {
                         // Add small delay to prevent black flicker
                         v.postDelayed(() -> {
-                            Intent intent = new Intent(this, ViewAllReportsActivity.class);
-                            intent.putExtra("officer_filter", false);
+                            Intent intent = new Intent(this, UserViewReportsActivity.class);
+                            intent.putExtra("filter_type", "ALL");
                             startActivity(intent);
                             overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
                         }, 100);
                     } catch (Exception e) {
-                        android.util.Log.e("UserDashboard", "Error opening ViewAllReports: " + e.getMessage());
+                        android.util.Log.e("UserDashboard", "Error opening UserViewReports: " + e.getMessage());
                         android.widget.Toast.makeText(this, "Error opening reports", android.widget.Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -361,13 +362,13 @@ public class UserDashboardActivity extends BaseActivity {
                 cardPending.setOnClickListener(v -> {
                     try {
                         v.postDelayed(() -> {
-                            Intent intent = new Intent(this, ViewPendingReportsActivity.class);
-                            intent.putExtra("officer_filter", false);
+                            Intent intent = new Intent(this, UserViewReportsActivity.class);
+                            intent.putExtra("filter_type", "PENDING");
                             startActivity(intent);
                             overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
                         }, 100);
                     } catch (Exception e) {
-                        android.util.Log.e("UserDashboard", "Error opening ViewPendingReports: " + e.getMessage());
+                        android.util.Log.e("UserDashboard", "Error opening UserViewReports: " + e.getMessage());
                         android.widget.Toast.makeText(this, "Error opening pending reports", android.widget.Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -380,13 +381,13 @@ public class UserDashboardActivity extends BaseActivity {
                 cardOngoing.setOnClickListener(v -> {
                     try {
                         v.postDelayed(() -> {
-                            Intent intent = new Intent(this, ViewOngoingReportsActivity.class);
-                            intent.putExtra("officer_filter", false);
+                            Intent intent = new Intent(this, UserViewReportsActivity.class);
+                            intent.putExtra("filter_type", "ONGOING");
                             startActivity(intent);
                             overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
                         }, 100);
                     } catch (Exception e) {
-                        android.util.Log.e("UserDashboard", "Error opening ViewOngoingReports: " + e.getMessage());
+                        android.util.Log.e("UserDashboard", "Error opening UserViewReports: " + e.getMessage());
                         android.widget.Toast.makeText(this, "Error opening ongoing reports", android.widget.Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -399,13 +400,13 @@ public class UserDashboardActivity extends BaseActivity {
                 cardResolved.setOnClickListener(v -> {
                     try {
                         v.postDelayed(() -> {
-                            Intent intent = new Intent(this, ViewResolvedReportsActivity.class);
-                            intent.putExtra("officer_filter", false);
+                            Intent intent = new Intent(this, UserViewReportsActivity.class);
+                            intent.putExtra("filter_type", "RESOLVED");
                             startActivity(intent);
                             overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
                         }, 100);
                     } catch (Exception e) {
-                        android.util.Log.e("UserDashboard", "Error opening ViewResolvedReports: " + e.getMessage());
+                        android.util.Log.e("UserDashboard", "Error opening UserViewReports: " + e.getMessage());
                         android.widget.Toast.makeText(this, "Error opening resolved reports", android.widget.Toast.LENGTH_SHORT).show();
                     }
                 });

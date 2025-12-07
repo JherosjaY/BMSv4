@@ -16,7 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/primary_dark_blue"
-            app:navigationIcon="@drawable/ic_back_arrow"
+            app:navigationIcon="@drawable/ic_arrow_back"
             app:navigationIconTint="@color/text_primary"
             app:title="Notifications"
             app:titleTextColor="@color/text_primary">
@@ -37,7 +37,7 @@
                     android:padding="10dp"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_done_all"
-                    android:tint="@color/electric_blue"
+                    android:tint="#60a5fa"
                     android:visibility="gone" />
 
                 <ImageButton

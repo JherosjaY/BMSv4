@@ -38,9 +38,14 @@ public class SuspectListAdapter extends RecyclerView.Adapter<SuspectListAdapter.
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Suspect suspect = suspectList.get(position);
         
-        holder.tvName.setText(suspect.getName());
-        holder.tvContactInfo.setText("📞 " + (suspect.getAddress() != null ? suspect.getAddress() : "N/A"));
-        holder.tvStatus.setText("Status: " + (suspect.getAlias() != null ? suspect.getAlias() : "Unknown"));
+        // Format name with alias: "Full Name/Alias" or just "Full Name" if no alias
+        String displayName = suspect.getName();
+        if (suspect.getAlias() != null && !suspect.getAlias().isEmpty()) {
+            displayName = suspect.getName() + "/" + suspect.getAlias();
+        }
+        holder.tvName.setText(displayName);
+        
+        holder.tvContactInfo.setText(suspect.getAddress() != null && !suspect.getAddress().isEmpty() ? suspect.getAddress() : "N/A");
         holder.tvDescription.setText(suspect.getDescription() != null ? suspect.getDescription() : "");
         holder.tvIdentifiedBy.setText("Identified by: Officer");
         
@@ -58,7 +63,6 @@ public class SuspectListAdapter extends RecyclerView.Adapter<SuspectListAdapter.
     public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView tvName;
         TextView tvContactInfo;
-        TextView tvStatus;
         TextView tvDescription;
         TextView tvIdentifiedBy;
         TextView tvDate;
@@ -67,7 +71,6 @@ public class SuspectListAdapter extends RecyclerView.Adapter<SuspectListAdapter.
             super(itemView);
             tvName = itemView.findViewById(R.id.tvSuspectName);
             tvContactInfo = itemView.findViewById(R.id.tvSuspectContact);
-            tvStatus = itemView.findViewById(R.id.tvSuspectStatus);
             tvDescription = itemView.findViewById(R.id.tvSuspectDescription);
             tvIdentifiedBy = itemView.findViewById(R.id.tvIdentifiedBy);
             tvDate = itemView.findViewById(R.id.tvIdentifiedDate);

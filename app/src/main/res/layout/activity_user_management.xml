@@ -16,7 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/primary_dark_blue"
-            app:navigationIcon="@drawable/ic_back_arrow"
+            app:navigationIcon="@drawable/ic_arrow_back"
             app:navigationIconTint="@color/text_primary"
             app:title="User Management"
             app:titleTextColor="@color/text_primary" />
@@ -46,16 +46,17 @@
                 app:startIconTint="@color/text_secondary"
                 app:endIconMode="custom"
                 app:endIconDrawable="@android:drawable/ic_menu_sort_by_size"
-                app:endIconTint="@color/text_secondary">
+                app:endIconTint="@color/electric_blue">
 
-                <com.google.android.material.textfield.TextInputEditText
+                <AutoCompleteTextView
                     android:id="@+id/etSearch"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="Search users..."
                     android:inputType="text"
                     android:textColor="@color/text_primary"
-                    android:textColorHint="@color/text_secondary" />
+                    android:textColorHint="@color/text_secondary"
+                    android:textCursorDrawable="@drawable/cursor_blue" />
             </com.google.android.material.textfield.TextInputLayout>
         </com.google.android.material.card.MaterialCardView>
 
