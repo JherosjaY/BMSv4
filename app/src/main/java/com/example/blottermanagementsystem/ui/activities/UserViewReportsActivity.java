@@ -20,7 +20,7 @@ import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.BlotterReport;
 import com.example.blottermanagementsystem.ui.adapters.ReportAdapter;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
-import com.example.blottermanagementsystem.utils.ApiClient;
+import com.example.blottermanagementsystem.data.api.ApiClient;
 import com.example.blottermanagementsystem.utils.NetworkMonitor;
 import android.widget.Toast;
 import com.google.android.material.chip.Chip;

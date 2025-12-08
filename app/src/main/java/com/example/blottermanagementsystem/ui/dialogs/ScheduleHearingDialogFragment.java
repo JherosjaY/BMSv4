@@ -21,7 +21,7 @@ import android.widget.CalendarView;
 import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Hearing;
-import com.example.blottermanagementsystem.utils.ApiClient;
+import com.example.blottermanagementsystem.data.api.ApiClient;
 import com.example.blottermanagementsystem.utils.NetworkMonitor;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
 import com.example.blottermanagementsystem.utils.HearingReminderManager;

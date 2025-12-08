@@ -18,7 +18,7 @@ import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Resolution;
 import com.example.blottermanagementsystem.data.entity.Suspect;
 import com.example.blottermanagementsystem.data.entity.PersonHistory;
-import com.example.blottermanagementsystem.utils.ApiClient;
+import com.example.blottermanagementsystem.data.api.ApiClient;
 import com.example.blottermanagementsystem.utils.NetworkMonitor;
 import java.util.List;
 import com.google.android.material.button.MaterialButton;

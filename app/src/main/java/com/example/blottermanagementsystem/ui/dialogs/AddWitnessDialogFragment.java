@@ -18,7 +18,7 @@ import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Witness;
 import com.example.blottermanagementsystem.ui.adapters.WitnessListAdapter;
-import com.example.blottermanagementsystem.utils.ApiClient;
+import com.example.blottermanagementsystem.data.api.ApiClient;
 import com.example.blottermanagementsystem.utils.NetworkMonitor;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;

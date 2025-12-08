@@ -20,7 +20,7 @@ import com.example.blottermanagementsystem.data.entity.Suspect;
 import com.example.blottermanagementsystem.data.entity.PersonHistory;
 import com.example.blottermanagementsystem.ui.adapters.SuspectListAdapter;
 import androidx.appcompat.app.AlertDialog;
-import com.example.blottermanagementsystem.utils.ApiClient;
+import com.example.blottermanagementsystem.data.api.ApiClient;
 import com.example.blottermanagementsystem.utils.NetworkMonitor;
 import com.google.android.material.button.MaterialButton;
 import retrofit2.Call;

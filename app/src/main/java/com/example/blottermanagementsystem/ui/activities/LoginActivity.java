@@ -18,7 +18,7 @@ import androidx.lifecycle.ViewModelProvider;
 import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.entity.User;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
-import com.example.blottermanagementsystem.utils.LoginResponse;
+import com.example.blottermanagementsystem.data.api.ApiService;
 import com.example.blottermanagementsystem.viewmodel.AuthViewModel;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -311,13 +311,16 @@ public class LoginActivity extends BaseActivity {
      */
     private void attemptApiLogin(String username, String password) {
         com.example.blottermanagementsystem.utils.ApiClient.login(username, password, 
-            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<LoginResponse>() {
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
                 @Override
-                public void onSuccess(LoginResponse loginResponse) {
+                public void onSuccess(Object loginResponseObj) {
                     android.util.Log.d("LoginActivity", "✅ API login successful");
                     
-                    // Get user from response
-                    com.example.blottermanagementsystem.data.entity.User apiUser = loginResponse.data.user;
+                    // Get user from response using reflection to avoid inner class reference
+                    try {
+                        Object dataObj = loginResponseObj.getClass().getField("data").get(loginResponseObj);
+                        com.example.blottermanagementsystem.data.entity.User apiUser = 
+                            (com.example.blottermanagementsystem.data.entity.User) dataObj.getClass().getField("user").get(dataObj);
                     
                     // Store API ID in user
                     apiUser.setApiId(apiUser.getId());
@@ -345,6 +348,10 @@ public class LoginActivity extends BaseActivity {
                         // Now proceed with local login
                         runOnUiThread(() -> attemptLocalLogin(apiUser.getUsername(), password));
                     });
+                    } catch (Exception e) {
+                        android.util.Log.e("LoginActivity", "❌ Error processing login response: " + e.getMessage(), e);
+                        onError("Error processing login response");
+                    }
                 }
                 
                 @Override

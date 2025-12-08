@@ -16,7 +16,7 @@ import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.User;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
-import com.example.blottermanagementsystem.utils.ApiClient;
+import com.example.blottermanagementsystem.data.api.ApiClient;
 import com.example.blottermanagementsystem.utils.CloudinaryHelper;
 import com.facebook.shimmer.ShimmerFrameLayout;
 import java.util.concurrent.Executors;
