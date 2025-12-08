@@ -329,35 +329,64 @@ public class OfficerManagementActivity extends BaseActivity {
         // Show loading for officers list
         com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Loading officers...");
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-            List<Officer> officers = database.officerDao().getAllOfficers();
-            
-            runOnUiThread(() -> {
-                officersList.clear();
-                officersList.addAll(officers);
-                officerAdapter.notifyDataSetChanged();
-                
-                // CardView always visible as background
-                emptyStateCard.setVisibility(android.view.View.VISIBLE);
-                
-                if (officers.isEmpty()) {
-                    emptyState.setVisibility(android.view.View.VISIBLE);
-                    recyclerOfficers.setVisibility(android.view.View.GONE);
-                } else {
-                    emptyState.setVisibility(android.view.View.GONE);
-                    recyclerOfficers.setVisibility(android.view.View.VISIBLE);
+        // ✅ PURE ONLINE: Check internet first
+        com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+            new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
+        
+        if (!networkMonitor.isNetworkAvailable()) {
+            android.util.Log.e("OfficerManagement", "❌ No internet connection");
+            com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Online - load from API
+        android.util.Log.d("OfficerManagement", "🌐 Loading officers from API");
+        loadOfficersViaApi();
+    }
+    
+    /**
+     * Pure Online: Load officers via API (Neon database only)
+     */
+    private void loadOfficersViaApi() {
+        com.example.blottermanagementsystem.utils.ApiClient.getAdminOfficers(
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<java.util.List<Officer>>() {
+                @Override
+                public void onSuccess(java.util.List<Officer> officers) {
+                    android.util.Log.d("OfficerManagement", "✅ Loaded " + officers.size() + " officers from API");
+                    
+                    runOnUiThread(() -> {
+                        officersList.clear();
+                        officersList.addAll(officers);
+                        if (officerAdapter != null) {
+                            officerAdapter.notifyDataSetChanged();
+                        }
+                        
+                        // CardView always visible as background
+                        emptyStateCard.setVisibility(android.view.View.VISIBLE);
+                        
+                        if (officers.isEmpty()) {
+                            emptyState.setVisibility(android.view.View.VISIBLE);
+                            recyclerOfficers.setVisibility(android.view.View.GONE);
+                        } else {
+                            emptyState.setVisibility(android.view.View.GONE);
+                            recyclerOfficers.setVisibility(android.view.View.VISIBLE);
+                        }
+                        
+                        // Hide loading
+                        com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                    });
                 }
                 
-                // Hide loading
-                com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("OfficerManagement", "❌ Failed to load officers: " + errorMessage);
+                    runOnUiThread(() -> {
+                        com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                        Toast.makeText(OfficerManagementActivity.this, "Failed to load officers", Toast.LENGTH_SHORT).show();
+                    });
+                }
             });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                });
-            }
-        });
     }
     
     @Override

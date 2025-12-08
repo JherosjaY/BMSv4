@@ -141,102 +141,79 @@ public class AddOfficerActivity extends BaseActivity {
                 PhoneNumberValidator.getSupportedNetworks(), Toast.LENGTH_LONG).show();
             return;
         }
-        // Badge number is auto-generated, no validation needed
         
         btnAddOfficer.setEnabled(false);
+        createOfficerViaApi(firstName, lastName, email, rank, badgeNumber, gender);
+    }
+    
+    /**
+     * Pure Online: Create officer via API (Neon database only)
+     */
+    private void createOfficerViaApi(String firstName, String lastName, String email, String rank, String badgeNumber, String gender) {
+        // ✅ PURE ONLINE: Check internet first
+        com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+            new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                // Create officer with required constructor parameters
-                String fullName = firstName + " " + lastName;
-                Officer officer = new Officer(fullName, rank, badgeNumber);
-                officer.setContactNumber(contactNumber);
-                officer.setEmail(email);
-                officer.setGender(gender);
-                officer.setActive(true);
-                
-                long officerId = database.officerDao().insertOfficer(officer);
-                
-                // Generate credentials for the officer
-                String username = com.example.blottermanagementsystem.utils.PasswordGenerator
-                    .generateUsername(firstName, lastName);
-                String temporaryPassword = com.example.blottermanagementsystem.utils.PasswordGenerator
-                    .generateOfficerPassword(rank, badgeNumber);
-                
-                android.util.Log.d("AddOfficer", "=== OFFICER CREDENTIALS ===");
-                android.util.Log.d("AddOfficer", "Username: " + username);
-                android.util.Log.d("AddOfficer", "Password (plain): " + temporaryPassword);
-                
-                // Check if username already exists
-                com.example.blottermanagementsystem.data.entity.User existingUser = 
-                    database.userDao().getUserByUsername(username);
-                
-                if (existingUser == null) {
+        if (!networkMonitor.isNetworkAvailable()) {
+            android.util.Log.e("AddOfficer", "❌ No internet connection");
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            btnAddOfficer.setEnabled(true);
+            return;
+        }
+        
+        android.util.Log.d("AddOfficer", "🌐 Creating officer via API");
+        
+        com.example.blottermanagementsystem.utils.ApiClient.createOfficer(firstName, lastName, email, rank, badgeNumber,
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object responseObj) {
                     try {
-                        // Hash the password before saving
-                        String hashedPassword = com.example.blottermanagementsystem.utils.SecurityUtils.hashPassword(temporaryPassword);
-                        android.util.Log.d("AddOfficer", "Password (plain): " + temporaryPassword);
-                        android.util.Log.d("AddOfficer", "Password (hashed): " + hashedPassword);
+                        android.util.Log.d("AddOfficer", "✅ Officer created via API");
                         
-                        // Verify hash is correct length (SHA-256 = 64 hex chars)
-                        if (hashedPassword.length() != 64) {
-                            android.util.Log.e("AddOfficer", "❌ ERROR: Hash length is " + hashedPassword.length() + ", expected 64!");
-                            throw new Exception("Password hash is invalid length: " + hashedPassword.length());
+                        // Extract credentials from response
+                        String username = "";
+                        String password = "";
+                        
+                        if (responseObj instanceof java.util.Map) {
+                            java.util.Map<String, Object> response = (java.util.Map<String, Object>) responseObj;
+                            java.util.Map<String, Object> credentials = (java.util.Map<String, Object>) response.get("credentials");
+                            if (credentials != null) {
+                                username = (String) credentials.get("username");
+                                password = (String) credentials.get("password");
+                            }
+                        } else {
+                            // Try reflection
+                            Object credentialsObj = responseObj.getClass().getField("credentials").get(responseObj);
+                            username = (String) credentialsObj.getClass().getField("username").get(credentialsObj);
+                            password = (String) credentialsObj.getClass().getField("password").get(credentialsObj);
                         }
                         
-                        com.example.blottermanagementsystem.data.entity.User officerUser = 
-                            new com.example.blottermanagementsystem.data.entity.User(
-                                firstName, lastName, username, hashedPassword, "Officer"
-                            );
-                        officerUser.setActive(true);
-                        officerUser.setProfileCompleted(true);
-                        officerUser.setGender(gender);
-                        officerUser.setEmail(email);
-                        officerUser.setPhoneNumber(contactNumber);
-                        officerUser.setMustChangePassword(true); // Force password change on first login
+                        final String finalUsername = username;
+                        final String finalPassword = password;
                         
-                        android.util.Log.d("AddOfficer", "=== ABOUT TO INSERT USER ===");
-                        android.util.Log.d("AddOfficer", "Username: " + officerUser.getUsername());
-                        android.util.Log.d("AddOfficer", "Password hash: " + officerUser.getPassword());
-                        android.util.Log.d("AddOfficer", "Active: " + officerUser.isActive());
-                        android.util.Log.d("AddOfficer", "Role: " + officerUser.getRole());
-                        
-                        long userId = database.userDao().insertUser(officerUser);
-                        android.util.Log.d("AddOfficer", "✅ Officer User created! UserID: " + userId);
-                        
-                        // Verify user was actually saved
-                        com.example.blottermanagementsystem.data.entity.User savedUser = database.userDao().getUserByUsername(username);
-                        if (savedUser == null) {
-                            throw new Exception("User was not saved to database!");
-                        }
-                        android.util.Log.d("AddOfficer", "✅ Verified user exists in database");
-                        android.util.Log.d("AddOfficer", "Saved hash: " + savedUser.getPassword());
-                        
-                        // Link officer to user
-                        officer.setId((int) officerId);
-                        officer.setUserId((int) userId);
-                        database.officerDao().updateOfficer(officer);
-                        android.util.Log.d("AddOfficer", "✅ Officer linked to user! OfficerID: " + officerId);
+                        runOnUiThread(() -> {
+                            String fullName = firstName + " " + lastName;
+                            handleCredentialsDelivery(fullName, finalUsername, finalPassword, rank, badgeNumber, email);
+                            btnAddOfficer.setEnabled(true);
+                        });
                     } catch (Exception e) {
-                        android.util.Log.e("AddOfficer", "❌ ERROR creating officer user: " + e.getMessage(), e);
-                        e.printStackTrace();
-                        throw e; // Re-throw to be caught by outer try-catch
+                        android.util.Log.e("AddOfficer", "❌ Error parsing credentials: " + e.getMessage());
+                        runOnUiThread(() -> {
+                            Toast.makeText(AddOfficerActivity.this, "Officer created but error displaying credentials", Toast.LENGTH_SHORT).show();
+                            btnAddOfficer.setEnabled(true);
+                        });
                     }
-                } else {
-                    android.util.Log.e("AddOfficer", "❌ Username already exists: " + username);
                 }
                 
-                runOnUiThread(() -> {
-                    // Check internet connection and show appropriate dialog
-                    handleCredentialsDelivery(fullName, username, temporaryPassword, rank, badgeNumber, email);
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    btnAddOfficer.setEnabled(true);
-                });
-            }
-        });
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("AddOfficer", "❌ Failed to create officer: " + errorMessage);
+                    runOnUiThread(() -> {
+                        Toast.makeText(AddOfficerActivity.this, "Failed to create officer: " + errorMessage, Toast.LENGTH_SHORT).show();
+                        btnAddOfficer.setEnabled(true);
+                    });
+                }
+            });
     }
     
     private void handleCredentialsDelivery(String officerName, String username, String password, 
