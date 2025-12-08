@@ -243,48 +243,79 @@ public class ProfileActivity extends BaseActivity {
     }
     
     private void loadProfilePicture() {
-        android.util.Log.d("ProfileActivity", "=== LOADING PROFILE PICTURE ===");
+        android.util.Log.d("ProfileActivity", "=== PURE ONLINE: LOADING PROFILE PICTURE FROM CLOUDINARY ===");
         
-        // Load from DATABASE (same as UserDashboard) for real-time sync!
-        int userId = preferencesManager.getUserId();
+        String userId = preferencesManager.getUserId();
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            User user = database.userDao().getUserById(userId);
-            String profileImageUri = null;
-            
-            if (user != null && user.getProfilePhotoUri() != null && !user.getProfilePhotoUri().isEmpty()) {
-                profileImageUri = user.getProfilePhotoUri();
-                android.util.Log.d("ProfileActivity", "✅ Loaded URI from database: " + profileImageUri);
-            } else {
-                android.util.Log.d("ProfileActivity", "No profile picture in database");
-            }
-            
-            final String finalProfileImageUri = profileImageUri;
-            
-            runOnUiThread(() -> {
-                if (finalProfileImageUri != null && !finalProfileImageUri.isEmpty()) {
+        // ✅ PURE ONLINE: Check internet first
+        com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+            new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
+        
+        if (!networkMonitor.isNetworkAvailable()) {
+            android.util.Log.w("ProfileActivity", "⚠️ No internet - using default profile picture");
+            ivProfilePicture.setImageResource(R.drawable.ic_person);
+            return;
+        }
+        
+        // Online - load from API (Cloudinary)
+        android.util.Log.d("ProfileActivity", "🌐 Loading profile picture from API/Cloudinary");
+        com.example.blottermanagementsystem.utils.ApiClient.getProfile(userId,
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object userObj) {
                     try {
-                        Uri imageUri = Uri.parse(finalProfileImageUri);
-                        // Clear tint before loading image
-                        ivProfilePicture.setImageTintList(null);
+                        // Extract profile photo URI from response
+                        String profilePhotoUri = null;
+                        if (userObj instanceof com.example.blottermanagementsystem.data.entity.User) {
+                            com.example.blottermanagementsystem.data.entity.User user = 
+                                (com.example.blottermanagementsystem.data.entity.User) userObj;
+                            profilePhotoUri = user.getProfilePhotoUri();
+                        } else {
+                            // Try reflection for API response
+                            profilePhotoUri = (String) userObj.getClass().getField("profilePhotoUri").get(userObj);
+                        }
                         
-                        com.bumptech.glide.Glide.with(this)
-                            .load(imageUri)
-                            .apply(com.bumptech.glide.request.RequestOptions.circleCropTransform())
-                            .placeholder(R.drawable.ic_person)
-                            .error(R.drawable.ic_person)
-                            .into(ivProfilePicture);
-                        android.util.Log.d("ProfileActivity", "✅ Profile picture loaded");
+                        final String finalUri = profilePhotoUri;
+                        runOnUiThread(() -> displayProfilePicture(finalUri));
+                        
                     } catch (Exception e) {
-                        android.util.Log.e("ProfileActivity", "❌ Error loading: " + e.getMessage());
-                        ivProfilePicture.setImageResource(R.drawable.ic_person);
+                        android.util.Log.e("ProfileActivity", "❌ Error extracting profile URI: " + e.getMessage());
+                        runOnUiThread(() -> ivProfilePicture.setImageResource(R.drawable.ic_person));
                     }
-                } else {
-                    android.util.Log.d("ProfileActivity", "Using default icon");
-                    ivProfilePicture.setImageResource(R.drawable.ic_person);
+                }
+                
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("ProfileActivity", "❌ Failed to load profile from API: " + errorMessage);
+                    runOnUiThread(() -> ivProfilePicture.setImageResource(R.drawable.ic_person));
                 }
             });
-        });
+    }
+    
+    /**
+     * Display profile picture from Cloudinary URL
+     */
+    private void displayProfilePicture(String profilePhotoUri) {
+        if (profilePhotoUri != null && !profilePhotoUri.isEmpty()) {
+            try {
+                Uri imageUri = Uri.parse(profilePhotoUri);
+                ivProfilePicture.setImageTintList(null);
+                
+                com.bumptech.glide.Glide.with(this)
+                    .load(imageUri)
+                    .apply(com.bumptech.glide.request.RequestOptions.circleCropTransform())
+                    .placeholder(R.drawable.ic_person)
+                    .error(R.drawable.ic_person)
+                    .into(ivProfilePicture);
+                android.util.Log.d("ProfileActivity", "✅ Profile picture loaded from Cloudinary");
+            } catch (Exception e) {
+                android.util.Log.e("ProfileActivity", "❌ Error loading image: " + e.getMessage());
+                ivProfilePicture.setImageResource(R.drawable.ic_person);
+            }
+        } else {
+            android.util.Log.d("ProfileActivity", "No profile picture - using default");
+            ivProfilePicture.setImageResource(R.drawable.ic_person);
+        }
     }
     
     private void setupListeners() {
