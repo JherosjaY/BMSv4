@@ -216,6 +216,7 @@ public class RegisterActivity extends BaseActivity {
         String password = etPassword.getText().toString().trim();
         String confirmPassword = etConfirmPassword.getText().toString().trim();
         
+        // Validation
         if (username.isEmpty() || email.isEmpty() || 
             password.isEmpty() || confirmPassword.isEmpty()) {
             showError("Please fill in all fields");
@@ -235,34 +236,75 @@ public class RegisterActivity extends BaseActivity {
         }
         
         hideError();
+        showLoading(true);
         
-        // ✅ FIXED: DO NOT save to database yet!
-        // Store user data temporarily in SharedPreferences
-        // User will ONLY be saved AFTER successful email verification
+        android.util.Log.d("RegisterActivity", "=== PURE ONLINE REGISTRATION ===");
+        android.util.Log.d("RegisterActivity", "Username: " + username);
+        android.util.Log.d("RegisterActivity", "Email: " + email);
         
-        preferencesManager.setTempUsername(username);
-        preferencesManager.setTempEmail(email);
-        preferencesManager.setTempPassword(hashPassword(password));
+        // ✅ PURE ONLINE: Check internet first
+        com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+            new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
         
-        android.util.Log.d("RegisterActivity", "✅ Registration successful!");
-        android.util.Log.d("RegisterActivity", "  Username: " + username);
-        android.util.Log.d("RegisterActivity", "  Email: " + email);
+        if (!networkMonitor.isNetworkAvailable()) {
+            android.util.Log.e("RegisterActivity", "❌ No internet connection");
+            showError("No internet connection. Please check your connection and try again.");
+            showLoading(false);
+            return;
+        }
         
-        // ✅ Skip email verification for now - go straight to login
-        android.widget.Toast.makeText(RegisterActivity.this, 
-            "Registration successful! Please log in.", 
-            android.widget.Toast.LENGTH_SHORT).show();
-        
-        // Navigate to login screen
-        Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
-        startActivity(intent);
-        finish();
+        // Online - proceed with API registration
+        android.util.Log.d("RegisterActivity", "🌐 Internet available - Attempting API registration");
+        attemptApiRegister(username, email, password);
+    }
     
+    /**
+     * Pure Online Registration via API (Neon database only)
+     */
+    private void attemptApiRegister(String username, String email, String password) {
+        com.example.blottermanagementsystem.utils.ApiClient.register(username, email, password, 
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object registerResponseObj) {
+                    android.util.Log.d("RegisterActivity", "✅ API registration successful");
+                    
+                    try {
+                        // Extract user from response
+                        Object dataObj = registerResponseObj.getClass().getField("data").get(registerResponseObj);
+                        com.example.blottermanagementsystem.data.entity.User newUser = 
+                            (com.example.blottermanagementsystem.data.entity.User) dataObj.getClass().getField("user").get(dataObj);
+                        
+                        android.util.Log.d("RegisterActivity", "✅ User registered: " + newUser.getId());
+                        
+                        showLoading(false);
+                        Toast.makeText(RegisterActivity.this, 
+                            "Registration successful! Please log in.", 
+                            Toast.LENGTH_SHORT).show();
+                        
+                        // Navigate to login screen
+                        Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
+                        startActivity(intent);
+                        finish();
+                        
+                    } catch (Exception e) {
+                        android.util.Log.e("RegisterActivity", "❌ Error processing registration response: " + e.getMessage(), e);
+                        showError("Error processing registration response");
+                        showLoading(false);
+                    }
+                }
+                
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("RegisterActivity", "❌ API registration failed: " + errorMessage);
+                    showError("Registration failed: " + errorMessage);
+                    showLoading(false);
+                }
+            });
     }
     
     private void handleRegisterSuccess() {
-        // This method is no longer used for email/password registration
-        // Email verification now handles the flow
+        // This method is no longer used
+        // Pure online registration handles the flow
     }
     
     private void showCredentialsDialog(String userName, String username, String password) {
