@@ -98,39 +98,84 @@ public class AdminDashboardActivity extends BaseActivity {
         // Show loading for admin dashboard
         com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Loading dashboard...");
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-            int totalUsers = database.userDao().getTotalUserCount(); // Exclude Admin and Officer
-            int totalOfficers = database.officerDao().getAllOfficers().size();
-            int totalReports = database.blotterReportDao().getAllReports().size();
-            int pendingReports = database.blotterReportDao().getReportsByStatus("Pending").size();
-            
-            // Get unread notifications count
-            int unreadNotifications = database.notificationDao()
-                .getUnreadNotificationsForUser(preferencesManager.getUserId()).size();
-            
-            runOnUiThread(() -> {
-                tvTotalUsers.setText(String.valueOf(totalUsers));
-                tvTotalOfficers.setText(String.valueOf(totalOfficers));
-                tvTotalReports.setText(String.valueOf(totalReports));
-                tvPendingReports.setText(String.valueOf(pendingReports));
+        // ✅ PURE ONLINE: Check internet first
+        com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+            new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
+        
+        if (!networkMonitor.isNetworkAvailable()) {
+            android.util.Log.e("AdminDashboard", "❌ No internet connection");
+            com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            swipeRefresh.setRefreshing(false);
+            return;
+        }
+        
+        // Online - load from API
+        android.util.Log.d("AdminDashboard", "🌐 Loading admin dashboard from API");
+        loadDashboardViaApi();
+    }
+    
+    /**
+     * Pure Online: Load admin dashboard statistics via API (Neon database only)
+     */
+    private void loadDashboardViaApi() {
+        com.example.blottermanagementsystem.utils.ApiClient.getAdminStatistics(
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object statsObj) {
+                    try {
+                        android.util.Log.d("AdminDashboard", "✅ Admin statistics loaded from API");
+                        
+                        // Extract statistics from response
+                        int totalUsers = 0, totalOfficers = 0, totalReports = 0, pendingReports = 0;
+                        
+                        if (statsObj instanceof java.util.Map) {
+                            java.util.Map<String, Object> stats = (java.util.Map<String, Object>) statsObj;
+                            totalUsers = ((Number) stats.getOrDefault("totalUsers", 0)).intValue();
+                            totalOfficers = ((Number) stats.getOrDefault("totalOfficers", 0)).intValue();
+                            totalReports = ((Number) stats.getOrDefault("totalReports", 0)).intValue();
+                            pendingReports = ((Number) stats.getOrDefault("pendingReports", 0)).intValue();
+                        } else {
+                            // Try reflection
+                            totalUsers = ((Number) statsObj.getClass().getField("totalUsers").get(statsObj)).intValue();
+                            totalOfficers = ((Number) statsObj.getClass().getField("totalOfficers").get(statsObj)).intValue();
+                            totalReports = ((Number) statsObj.getClass().getField("totalReports").get(statsObj)).intValue();
+                            pendingReports = ((Number) statsObj.getClass().getField("pendingReports").get(statsObj)).intValue();
+                        }
+                        
+                        final int finalUsers = totalUsers;
+                        final int finalOfficers = totalOfficers;
+                        final int finalReports = totalReports;
+                        final int finalPending = pendingReports;
+                        
+                        runOnUiThread(() -> {
+                            tvTotalUsers.setText(String.valueOf(finalUsers));
+                            tvTotalOfficers.setText(String.valueOf(finalOfficers));
+                            tvTotalReports.setText(String.valueOf(finalReports));
+                            tvPendingReports.setText(String.valueOf(finalPending));
+                            
+                            swipeRefresh.setRefreshing(false);
+                            com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                        });
+                    } catch (Exception e) {
+                        android.util.Log.e("AdminDashboard", "❌ Error parsing statistics: " + e.getMessage());
+                        runOnUiThread(() -> {
+                            swipeRefresh.setRefreshing(false);
+                            com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                        });
+                    }
+                }
                 
-                // Update notification badge
-                updateNotificationBadge(unreadNotifications);
-                
-                // Stop refresh animation
-                swipeRefresh.setRefreshing(false);
-                
-                // Hide loading
-                com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("AdminDashboard", "❌ Failed to load statistics: " + errorMessage);
+                    runOnUiThread(() -> {
+                        Toast.makeText(AdminDashboardActivity.this, "Failed to load dashboard", Toast.LENGTH_SHORT).show();
+                        swipeRefresh.setRefreshing(false);
+                        com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                    });
+                }
             });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    swipeRefresh.setRefreshing(false);
-                });
-            }
-        });
     }
     
     private void updateNotificationBadge(int count) {
