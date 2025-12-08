@@ -90,79 +90,95 @@ public class SendNotificationActivity extends BaseActivity {
         btnSendNotification.setEnabled(false);
         btnSendNotification.setText("Sending...");
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                int selectedId = radioGroupRecipients.getCheckedRadioButtonId();
-                List<User> recipients = new ArrayList<>();
-                
-                if (selectedId == R.id.radioAllUsers) {
-                    // Send to all users (exclude Admins and Officers)
-                    recipients = database.userDao().getUsersByRole("User");
-                } else if (selectedId == R.id.radioSpecificUsers) {
-                    // Send to selected users
-                    recipients = selectedUsers;
-                } else if (selectedId == R.id.radioSpecificOfficers) {
-                    // Send to selected officers (convert to users)
-                    for (Officer officer : selectedOfficers) {
-                        if (officer.getUserId() != null) {
-                            User user = database.userDao().getUserById(officer.getUserId());
-                            if (user != null) {
-                                recipients.add(user);
-                            }
-                        }
-                    }
-                } else if (selectedId == R.id.radioAllOfficers) {
-                    // Send to all officers (get from Officer table)
-                    List<Officer> officers = database.officerDao().getAllOfficers();
-                    for (Officer officer : officers) {
-                        if (officer.getUserId() != null) {
-                            User user = database.userDao().getUserById(officer.getUserId());
-                            if (user != null) {
-                                recipients.add(user);
-                            }
-                        }
-                    }
-                }
-                
-                // Send notifications
-                if (!recipients.isEmpty()) {
-                    for (User user : recipients) {
-                        Notification notification = new Notification(
-                            user.getId(),
-                            title,
-                            message,
-                            "ANNOUNCEMENT"
-                        );
-                        database.notificationDao().insertNotification(notification);
-                    }
+        // ✅ PURE ONLINE: Check internet first
+        com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+            new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
+        
+        if (!networkMonitor.isNetworkAvailable()) {
+            android.util.Log.e("SendNotification", "❌ No internet connection");
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            btnSendNotification.setEnabled(true);
+            btnSendNotification.setText("Send Notification");
+            return;
+        }
+        
+        // Online - send via API
+        android.util.Log.d("SendNotification", "🌐 Sending notification via API");
+        sendNotificationViaApi(title, message);
+    }
+    
+    /**
+     * Pure Online: Send notification via API (Neon database only)
+     */
+    private void sendNotificationViaApi(String title, String message) {
+        int selectedId = radioGroupRecipients.getCheckedRadioButtonId();
+        String recipientType = "ALL_USERS"; // default
+        
+        if (selectedId == R.id.radioAllUsers) {
+            recipientType = "ALL_USERS";
+        } else if (selectedId == R.id.radioSpecificUsers) {
+            recipientType = "SPECIFIC_USERS";
+        } else if (selectedId == R.id.radioAllOfficers) {
+            recipientType = "ALL_OFFICERS";
+        } else if (selectedId == R.id.radioSpecificOfficers) {
+            recipientType = "SPECIFIC_OFFICERS";
+        }
+        
+        com.example.blottermanagementsystem.utils.ApiClient.sendNotification(title, message, recipientType, selectedUsers, selectedOfficers,
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object response) {
+                    android.util.Log.d("SendNotification", "✅ Notification sent via API");
                     
-                    int finalCount = recipients.size();
                     runOnUiThread(() -> {
-                        Toast.makeText(this, "Notification sent to " + finalCount + " recipient(s)", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(SendNotificationActivity.this, "Notification sent successfully", Toast.LENGTH_SHORT).show();
                         finish();
                     });
-                } else {
+                }
+                
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("SendNotification", "❌ Failed to send notification: " + errorMessage);
                     runOnUiThread(() -> {
-                        Toast.makeText(this, "No recipients selected", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(SendNotificationActivity.this, "Failed to send notification", Toast.LENGTH_SHORT).show();
                         btnSendNotification.setEnabled(true);
                         btnSendNotification.setText("Send Notification");
                     });
                 }
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    btnSendNotification.setEnabled(true);
-                    btnSendNotification.setText("Send Notification");
-                });
-            }
-        });
+            });
     }
     
     private void showSelectUsersDialog() {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                // Get all users (both Google & manual sign-up)
-                List<User> allUsers = database.userDao().getUsersByRole("User");
+        // ✅ PURE ONLINE: Load users from API
+        com.example.blottermanagementsystem.utils.ApiClient.getAdminUsers(
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<java.util.List<User>>() {
+                @Override
+                public void onSuccess(java.util.List<User> allUsers) {
+                    // Filter to show only users (exclude admin/officer)
+                    java.util.List<User> filteredUsers = new java.util.ArrayList<>();
+                    for (User user : allUsers) {
+                        if (user.getRole() != null && user.getRole().equalsIgnoreCase("user")) {
+                            filteredUsers.add(user);
+                        }
+                    }
+                    
+                    runOnUiThread(() -> {
+                        displaySelectUsersDialog(filteredUsers);
+                    });
+                }
+                
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("SendNotification", "❌ Failed to load users: " + errorMessage);
+                    runOnUiThread(() -> {
+                        Toast.makeText(SendNotificationActivity.this, "Failed to load users", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+    }
+    
+    private void displaySelectUsersDialog(java.util.List<User> allUsers) {
+        try {
                 
                 runOnUiThread(() -> {
                     // Create custom dialog view
@@ -268,16 +284,35 @@ public class SendNotificationActivity extends BaseActivity {
                     dialog.show();
                 });
             } catch (Exception e) {
-                runOnUiThread(() -> Toast.makeText(this, "Error loading users: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                Toast.makeText(SendNotificationActivity.this, "Error loading users: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             }
-        });
     }
     
     private void showSelectOfficersDialog() {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                // Get all officers
-                List<Officer> allOfficers = database.officerDao().getAllOfficers();
+        // ✅ PURE ONLINE: Load officers from API
+        com.example.blottermanagementsystem.utils.ApiClient.getAdminOfficers(
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<java.util.List<Officer>>() {
+                @Override
+                public void onSuccess(java.util.List<Officer> allOfficers) {
+                    android.util.Log.d("SendNotification", "✅ Loaded " + allOfficers.size() + " officers from API");
+                    
+                    runOnUiThread(() -> {
+                        displaySelectOfficersDialog(allOfficers);
+                    });
+                }
+                
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("SendNotification", "❌ Failed to load officers: " + errorMessage);
+                    runOnUiThread(() -> {
+                        Toast.makeText(SendNotificationActivity.this, "Failed to load officers", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+    }
+    
+    private void displaySelectOfficersDialog(java.util.List<Officer> allOfficers) {
+        try {
                 
                 runOnUiThread(() -> {
                     // Create custom dialog view
@@ -390,8 +425,7 @@ public class SendNotificationActivity extends BaseActivity {
                     dialog.show();
                 });
             } catch (Exception e) {
-                runOnUiThread(() -> Toast.makeText(this, "Error loading officers: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                Toast.makeText(SendNotificationActivity.this, "Error loading officers: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             }
-        });
     }
 }
