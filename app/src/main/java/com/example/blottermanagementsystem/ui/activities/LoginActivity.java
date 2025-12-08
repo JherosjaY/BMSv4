@@ -289,25 +289,27 @@ public class LoginActivity extends BaseActivity {
         hideError();
         showLoading(true);
         
-        android.util.Log.d("LoginActivity", "=== LOGIN DEBUG ===");
-        android.util.Log.d("LoginActivity", "Attempting login with:");
+        android.util.Log.d("LoginActivity", "=== PURE ONLINE LOGIN ===");
         android.util.Log.d("LoginActivity", "Username: " + username);
         
-        // ✅ Try API login first if online
+        // ✅ PURE ONLINE: Check internet first
         com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
             new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
         
-        if (networkMonitor.isNetworkAvailable()) {
-            android.util.Log.d("LoginActivity", "🌐 Online - Attempting API login");
-            attemptApiLogin(username, password);
-        } else {
-            android.util.Log.d("LoginActivity", "📴 Offline - Using local database login");
-            attemptLocalLogin(username, password);
+        if (!networkMonitor.isNetworkAvailable()) {
+            android.util.Log.e("LoginActivity", "❌ No internet connection");
+            showError("No internet connection. Please check your connection and try again.");
+            showLoading(false);
+            return;
         }
+        
+        // Online - proceed with API login
+        android.util.Log.d("LoginActivity", "🌐 Internet available - Attempting API login");
+        attemptApiLogin(username, password);
     }
     
     /**
-     * Attempt login via API (Neon database)
+     * Pure Online Login via API (Neon database only)
      */
     private void attemptApiLogin(String username, String password) {
         com.example.blottermanagementsystem.utils.ApiClient.login(username, password, 
@@ -316,59 +318,68 @@ public class LoginActivity extends BaseActivity {
                 public void onSuccess(Object loginResponseObj) {
                     android.util.Log.d("LoginActivity", "✅ API login successful");
                     
-                    // Get user from response using reflection to avoid inner class reference
                     try {
+                        // Extract user from response
                         Object dataObj = loginResponseObj.getClass().getField("data").get(loginResponseObj);
                         com.example.blottermanagementsystem.data.entity.User apiUser = 
                             (com.example.blottermanagementsystem.data.entity.User) dataObj.getClass().getField("user").get(dataObj);
-                    
-                    // Store API ID in user
-                    apiUser.setApiId(apiUser.getId());
-                    
-                    // Save to local database on background thread
-                    java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-                        com.example.blottermanagementsystem.data.database.BlotterDatabase database = 
-                            com.example.blottermanagementsystem.data.database.BlotterDatabase.getDatabase(LoginActivity.this);
                         
-                        // Check if user exists locally
-                        com.example.blottermanagementsystem.data.entity.User existingUser = 
-                            database.userDao().getUserByEmail(apiUser.getEmail());
+                        // Store user data in preferences (from API/Neon)
+                        String userId = apiUser.getId();
+                        String userRole = apiUser.getRole();
                         
-                        if (existingUser != null) {
-                            // Update existing user with API ID
-                            existingUser.setApiId(apiUser.getId());
-                            database.userDao().updateUser(existingUser);
-                            android.util.Log.d("LoginActivity", "✅ Updated local user with API ID: " + apiUser.getId());
-                        } else {
-                            // Insert new user
-                            database.userDao().insertUser(apiUser);
-                            android.util.Log.d("LoginActivity", "✅ Inserted new user with API ID: " + apiUser.getId());
-                        }
+                        preferencesManager.setUserId(userId);
+                        preferencesManager.setUserRole(userRole);
+                        preferencesManager.setUsername(apiUser.getUsername());
+                        preferencesManager.setFirstName(apiUser.getFirstName());
+                        preferencesManager.setLastName(apiUser.getLastName());
+                        preferencesManager.setLoggedIn(true);
                         
-                        // Now proceed with local login
-                        runOnUiThread(() -> attemptLocalLogin(apiUser.getUsername(), password));
-                    });
+                        android.util.Log.d("LoginActivity", "✅ User stored: " + userId + " Role: " + userRole);
+                        
+                        // Navigate based on role
+                        navigateByRole(userRole);
+                        
                     } catch (Exception e) {
                         android.util.Log.e("LoginActivity", "❌ Error processing login response: " + e.getMessage(), e);
-                        onError("Error processing login response");
+                        showError("Error processing login response");
+                        showLoading(false);
                     }
                 }
                 
                 @Override
                 public void onError(String errorMessage) {
-                    android.util.Log.w("LoginActivity", "⚠️ API login failed: " + errorMessage);
-                    // Fall back to local login
-                    attemptLocalLogin(username, password);
+                    android.util.Log.e("LoginActivity", "❌ API login failed: " + errorMessage);
+                    showError("Login failed: " + errorMessage);
+                    showLoading(false);
                 }
             });
     }
     
     /**
-     * Attempt login using local database
+     * Navigate based on user role
      */
-    private void attemptLocalLogin(String username, String password) {
-        android.util.Log.d("LoginActivity", "🔐 Attempting local database login");
-        authViewModel.login(username, password);
+    private void navigateByRole(String role) {
+        android.util.Log.d("LoginActivity", "🔄 Navigating to " + role + " dashboard");
+        
+        Intent intent;
+        switch (role.toLowerCase()) {
+            case "citizen":
+            case "user":
+                intent = new Intent(this, UserDashboardActivity.class);
+                break;
+            case "officer":
+                intent = new Intent(this, OfficerDashboardActivity.class);
+                break;
+            case "admin":
+                intent = new Intent(this, AdminDashboardActivity.class);
+                break;
+            default:
+                intent = new Intent(this, UserDashboardActivity.class);
+        }
+        
+        startActivity(intent);
+        finish();
     }
     
     /**
