@@ -142,32 +142,58 @@ public class UserManagementActivity extends BaseActivity {
     private void loadUsers() {
         com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Loading users...");
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                usersList.clear();
-                List<User> allUsers = database.userDao().getAllUsers();
-                
-                // Filter to show ONLY User role accounts (exclude Admin and Officer)
-                for (User user : allUsers) {
-                    if (user.getRole() != null && user.getRole().equalsIgnoreCase("USER")) {
-                        usersList.add(user);
+        // ✅ PURE ONLINE: Check internet first
+        com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+            new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
+        
+        if (!networkMonitor.isNetworkAvailable()) {
+            android.util.Log.e("UserManagement", "❌ No internet connection");
+            com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Online - load from API
+        android.util.Log.d("UserManagement", "🌐 Loading users from API");
+        loadUsersViaApi();
+    }
+    
+    /**
+     * Pure Online: Load users via API (Neon database only)
+     */
+    private void loadUsersViaApi() {
+        com.example.blottermanagementsystem.utils.ApiClient.getAdminUsers(
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<java.util.List<User>>() {
+                @Override
+                public void onSuccess(java.util.List<User> allUsers) {
+                    android.util.Log.d("UserManagement", "✅ Loaded " + allUsers.size() + " users from API");
+                    
+                    usersList.clear();
+                    // Filter to show ONLY User role accounts (exclude Admin and Officer)
+                    for (User user : allUsers) {
+                        if (user.getRole() != null && user.getRole().equalsIgnoreCase("user")) {
+                            usersList.add(user);
+                        }
                     }
+                    
+                    runOnUiThread(() -> {
+                        com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                        if (userAdapter != null) {
+                            userAdapter.notifyDataSetChanged();
+                        }
+                        updateEmptyState();
+                    });
                 }
                 
-                runOnUiThread(() -> {
-                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    if (userAdapter != null) {
-                        userAdapter.notifyDataSetChanged();
-                    }
-                    updateEmptyState();
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    Toast.makeText(this, "Error loading users: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
-            }
-        });
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("UserManagement", "❌ Failed to load users: " + errorMessage);
+                    runOnUiThread(() -> {
+                        com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                        Toast.makeText(UserManagementActivity.this, "Failed to load users", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
     }
     
     private void filterUsers(String query) {
@@ -301,23 +327,8 @@ public class UserManagementActivity extends BaseActivity {
         
         // Terminate button
         btnConfirmTerminate.setOnClickListener(v -> {
-            // Deactivate user in database
-            Executors.newSingleThreadExecutor().execute(() -> {
-                try {
-                    user.setActive(false);
-                    database.userDao().updateUser(user);
-                    
-                    runOnUiThread(() -> {
-                        Toast.makeText(UserManagementActivity.this, "User terminated successfully", Toast.LENGTH_SHORT).show();
-                        loadUsers(); // Refresh list
-                        dialog.dismiss();
-                    });
-                } catch (Exception e) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(UserManagementActivity.this, "Error terminating user: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    });
-                }
-            });
+            dialog.dismiss();
+            deactivateUserViaApi(user);
         });
         
         dialog.show();
@@ -350,25 +361,53 @@ public class UserManagementActivity extends BaseActivity {
         
         // Delete button
         btnConfirmDelete.setOnClickListener(v -> {
-            // Delete user from database
-            Executors.newSingleThreadExecutor().execute(() -> {
-                try {
-                    database.userDao().deleteUser(user);
-                    
-                    runOnUiThread(() -> {
-                        Toast.makeText(UserManagementActivity.this, "User deleted successfully", Toast.LENGTH_SHORT).show();
-                        loadUsers(); // Refresh list - user will disappear from UI
-                        dialog.dismiss();
-                    });
-                } catch (Exception e) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(UserManagementActivity.this, "Error deleting user: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    });
-                }
-            });
+            dialog.dismiss();
+            deleteUserViaApi(user);
         });
         
         dialog.show();
+    }
+    
+    /**
+     * Pure Online: Deactivate user via API
+     */
+    private void deactivateUserViaApi(User user) {
+        com.example.blottermanagementsystem.utils.ApiClient.deactivateUser(user.getId(),
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object response) {
+                    android.util.Log.d("UserManagement", "✅ User deactivated: " + user.getId());
+                    Toast.makeText(UserManagementActivity.this, "User terminated successfully", Toast.LENGTH_SHORT).show();
+                    loadUsers(); // Refresh list
+                }
+                
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("UserManagement", "❌ Failed to deactivate user: " + errorMessage);
+                    Toast.makeText(UserManagementActivity.this, "Failed to terminate user", Toast.LENGTH_SHORT).show();
+                }
+            });
+    }
+    
+    /**
+     * Pure Online: Delete user via API
+     */
+    private void deleteUserViaApi(User user) {
+        com.example.blottermanagementsystem.utils.ApiClient.deleteUser(user.getId(),
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object response) {
+                    android.util.Log.d("UserManagement", "✅ User deleted: " + user.getId());
+                    Toast.makeText(UserManagementActivity.this, "User deleted successfully", Toast.LENGTH_SHORT).show();
+                    loadUsers(); // Refresh list
+                }
+                
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("UserManagement", "❌ Failed to delete user: " + errorMessage);
+                    Toast.makeText(UserManagementActivity.this, "Failed to delete user", Toast.LENGTH_SHORT).show();
+                }
+            });
     }
     
     private void showFilterMenu() {
