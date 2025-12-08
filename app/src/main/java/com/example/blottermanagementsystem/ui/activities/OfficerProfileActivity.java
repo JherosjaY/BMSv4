@@ -322,53 +322,44 @@ public class OfficerProfileActivity extends BaseActivity {
     }
     
     private void performAccountDeletion() {
-        int userId = preferencesManager.getUserId();
+        String userId = preferencesManager.getUserId();
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                // Delete all user's reports
-                database.blotterReportDao().deleteReportsByUserId(userId);
-                
-                // Delete all user's notifications
-                database.notificationDao().deleteAllByUserId(userId);
-                
-                // Delete corresponding Officer record (if exists)
-                // Get officer by user ID or name
-                String username = currentUser.getUsername();
-                List<com.example.blottermanagementsystem.data.entity.Officer> officers = 
-                    database.officerDao().getAllOfficers();
-                
-                for (com.example.blottermanagementsystem.data.entity.Officer officer : officers) {
-                    // Match by name or other identifier
-                    if (officer.getName() != null && 
-                        officer.getName().equals(currentUser.getFirstName() + " " + currentUser.getLastName())) {
-                        database.officerDao().deleteOfficer(officer);
-                        android.util.Log.d("OfficerProfileActivity", "✅ Officer record deleted: " + officer.getName());
-                        break;
-                    }
+        // ✅ PURE ONLINE: Check internet first
+        com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+            new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
+        
+        if (!networkMonitor.isNetworkAvailable()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Delete account via API
+        android.util.Log.d("OfficerProfile", "🌐 Deleting account via API");
+        com.example.blottermanagementsystem.utils.ApiClient.deleteUser(userId,
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object response) {
+                    android.util.Log.d("OfficerProfile", "✅ Account deleted via API");
+                    runOnUiThread(() -> {
+                        // Clear session
+                        preferencesManager.clearSession();
+                        
+                        // Navigate to login
+                        Intent intent = new Intent(OfficerProfileActivity.this, LoginActivity.class);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        startActivity(intent);
+                        finish();
+                    });
                 }
                 
-                // Delete user account
-                database.userDao().deleteUser(currentUser);
-                
-                runOnUiThread(() -> {
-                    // Clear session
-                    preferencesManager.clearSession();
-                    
-                    // Navigate to login (not welcome screen)
-                    Intent intent = new Intent(this, LoginActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent);
-                    finish();
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "Error deleting account: " + e.getMessage(), 
-                                 Toast.LENGTH_SHORT).show();
-                    android.util.Log.e("OfficerProfileActivity", "Error deleting account", e);
-                });
-            }
-        });
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("OfficerProfile", "❌ Failed to delete account: " + errorMessage);
+                    runOnUiThread(() -> {
+                        Toast.makeText(OfficerProfileActivity.this, "Failed to delete account", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
     }
     
     private void showEditProfileDialog() {
@@ -406,17 +397,37 @@ public class OfficerProfileActivity extends BaseActivity {
                 return;
             }
             
-            // Update user
-            currentUser.setFirstName(firstName);
-            currentUser.setLastName(lastName);
+            // ✅ PURE ONLINE: Check internet first
+            com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+                new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
             
-            Executors.newSingleThreadExecutor().execute(() -> {
-                database.userDao().updateUser(currentUser);
-                runOnUiThread(() -> {
-                    loadUserData();
-                    dialog.dismiss();
+            if (!networkMonitor.isNetworkAvailable()) {
+                Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Update profile via API
+            String userId = preferencesManager.getUserId();
+            com.example.blottermanagementsystem.utils.ApiClient.updateProfile(userId, firstName, lastName, null,
+                new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                    @Override
+                    public void onSuccess(Object response) {
+                        android.util.Log.d("OfficerProfile", "✅ Profile updated via API");
+                        runOnUiThread(() -> {
+                            Toast.makeText(OfficerProfileActivity.this, "Profile updated successfully", Toast.LENGTH_SHORT).show();
+                            loadUserData();
+                            dialog.dismiss();
+                        });
+                    }
+                    
+                    @Override
+                    public void onError(String errorMessage) {
+                        android.util.Log.e("OfficerProfile", "❌ Failed to update profile: " + errorMessage);
+                        runOnUiThread(() -> {
+                            Toast.makeText(OfficerProfileActivity.this, "Failed to update profile", Toast.LENGTH_SHORT).show();
+                        });
+                    }
                 });
-            });
         });
         
         // Make dialog background transparent
@@ -452,11 +463,6 @@ public class OfficerProfileActivity extends BaseActivity {
                 return;
             }
             
-            if (!com.example.blottermanagementsystem.utils.SecurityUtils.verifyPassword(currentPassword, currentUser.getPassword())) {
-                Toast.makeText(this, "Current password is incorrect", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
             if (newPassword.length() < 6) {
                 Toast.makeText(this, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show();
                 return;
@@ -467,16 +473,36 @@ public class OfficerProfileActivity extends BaseActivity {
                 return;
             }
             
-            // Update password with proper hashing
-            String hashedNewPassword = com.example.blottermanagementsystem.utils.SecurityUtils.hashPassword(newPassword);
-            currentUser.setPassword(hashedNewPassword);
+            // ✅ PURE ONLINE: Check internet first
+            com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+                new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
             
-            Executors.newSingleThreadExecutor().execute(() -> {
-                database.userDao().updateUser(currentUser);
-                runOnUiThread(() -> {
-                    dialog.dismiss();
+            if (!networkMonitor.isNetworkAvailable()) {
+                Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // Change password via API
+            String userId = preferencesManager.getUserId();
+            com.example.blottermanagementsystem.utils.ApiClient.changePassword(userId, currentPassword, newPassword,
+                new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                    @Override
+                    public void onSuccess(Object response) {
+                        android.util.Log.d("OfficerProfile", "✅ Password changed via API");
+                        runOnUiThread(() -> {
+                            Toast.makeText(OfficerProfileActivity.this, "Password changed successfully", Toast.LENGTH_SHORT).show();
+                            dialog.dismiss();
+                        });
+                    }
+                    
+                    @Override
+                    public void onError(String errorMessage) {
+                        android.util.Log.e("OfficerProfile", "❌ Failed to change password: " + errorMessage);
+                        runOnUiThread(() -> {
+                            Toast.makeText(OfficerProfileActivity.this, "Failed to change password", Toast.LENGTH_SHORT).show();
+                        });
+                    }
                 });
-            });
         });
         
         // Make dialog background transparent
