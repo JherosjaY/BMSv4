@@ -9,18 +9,19 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Officer;
 import com.example.blottermanagementsystem.ui.adapters.OfficerAdapter;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
-import com.example.blottermanagementsystem.data.entity.BlotterReport;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.util.Log;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
+import java.util.HashMap;
+import java.util.Map;
 
 public class OfficerManagementActivity extends BaseActivity {
     
@@ -30,7 +31,7 @@ public class OfficerManagementActivity extends BaseActivity {
     private androidx.cardview.widget.CardView emptyStateCard;
     private FloatingActionButton fabAddOfficer;
     
-    private BlotterDatabase database;
+    private NetworkMonitor networkMonitor;
     private List<Officer> officersList = new ArrayList<>();
     private OfficerAdapter officerAdapter;
     
@@ -39,7 +40,7 @@ public class OfficerManagementActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_officer_management);
         
-        database = BlotterDatabase.getDatabase(this);
+        networkMonitor = new NetworkMonitor(this);
         
         setupToolbar();
         initViews();
@@ -252,22 +253,36 @@ public class OfficerManagementActivity extends BaseActivity {
                 return;
             }
             
-            // Update officer
-            String newFullName = newFirstName + " " + newLastName;
-            officer.setName(newFullName);
-            officer.setContactNumber(newContact);
-            officer.setEmail(newEmail);
-            officer.setGender(newGender);
-            officer.setRank(newRank);
+            if (!networkMonitor.isOnline()) {
+                android.widget.Toast.makeText(this, "No internet connection", android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
             
-            // Save to database
-            java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-                database.officerDao().updateOfficer(officer);
+            // Update officer via API
+            String newFullName = newFirstName + " " + newLastName;
+            Map<String, Object> updateData = new HashMap<>();
+            updateData.put("name", newFullName);
+            updateData.put("contactNumber", newContact);
+            updateData.put("email", newEmail);
+            updateData.put("gender", newGender);
+            updateData.put("rank", newRank);
+            
+            ApiClient.updateOfficer(officer.getId(), updateData, new ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object response) {
+                    runOnUiThread(() -> {
+                        android.widget.Toast.makeText(OfficerManagementActivity.this, "Officer updated successfully", android.widget.Toast.LENGTH_SHORT).show();
+                        loadOfficers();
+                        dialog.dismiss();
+                    });
+                }
                 
-                runOnUiThread(() -> {
-                    loadOfficers();
-                    dialog.dismiss();
-                });
+                @Override
+                public void onError(String errorMessage) {
+                    runOnUiThread(() -> {
+                        android.widget.Toast.makeText(OfficerManagementActivity.this, "Error: " + errorMessage, android.widget.Toast.LENGTH_SHORT).show();
+                    });
+                }
             });
         });
         
@@ -280,41 +295,23 @@ public class OfficerManagementActivity extends BaseActivity {
     }
     
     private void deleteOfficer(Officer officer) {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                // ✅ Get all cases assigned to this officer
-                List<BlotterReport> assignedCases = database.blotterReportDao()
-                    .getReportsByAssignedOfficer(officer.getId());
-                
-                // ✅ Remove officer from all assigned cases
-                if (assignedCases != null && !assignedCases.isEmpty()) {
-                    for (BlotterReport report : assignedCases) {
-                        // Clear the assigned officer
-                        report.setAssignedOfficer(null);
-                        database.blotterReportDao().updateReport(report);
-                        
-                        // ✅ Delete the push notification for this case assignment
-                        NotificationManager notificationManager = 
-                            (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-                        if (notificationManager != null) {
-                            notificationManager.cancel(report.getId() + 2000);
-                            Log.i("OfficerMgmt", "✅ Notification cancelled for case " + report.getCaseNumber());
-                        }
-                    }
-                }
-                
-                // ✅ Delete the officer
-                database.officerDao().deleteOfficer(officer);
-                
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "Officer deleted and cases unassigned", Toast.LENGTH_SHORT).show();
-                    loadOfficers(); // Reload the list
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "Error deleting officer: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    Log.e("OfficerMgmt", "Error: " + e.getMessage());
-                });
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Delete officer via API (pure online)
+        ApiClient.deleteOfficer(officer.getId(), new ApiClient.ApiCallback<Object>() {
+            @Override
+            public void onSuccess(Object response) {
+                Toast.makeText(OfficerManagementActivity.this, "Officer deleted successfully", Toast.LENGTH_SHORT).show();
+                loadOfficers(); // Reload the list
+            }
+            
+            @Override
+            public void onError(String errorMessage) {
+                Toast.makeText(OfficerManagementActivity.this, "Error: " + errorMessage, Toast.LENGTH_SHORT).show();
+                Log.e("OfficerMgmt", "Error deleting officer: " + errorMessage);
             }
         });
     }

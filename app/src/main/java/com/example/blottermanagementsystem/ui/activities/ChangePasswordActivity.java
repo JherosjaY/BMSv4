@@ -7,16 +7,17 @@ import androidx.appcompat.widget.Toolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
-import com.example.blottermanagementsystem.data.entity.User;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
 
 public class ChangePasswordActivity extends AppCompatActivity {
     
     private TextInputEditText etCurrentPassword, etNewPassword, etConfirmPassword;
     private MaterialButton btnChangePassword, btnCancel;
     private PreferencesManager preferencesManager;
-    private int userId;
+    private NetworkMonitor networkMonitor;
+    private String userId;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,6 +26,7 @@ public class ChangePasswordActivity extends AppCompatActivity {
         
         // Initialize
         preferencesManager = new PreferencesManager(this);
+        networkMonitor = new NetworkMonitor(this);
         userId = preferencesManager.getUserId();
         
         // Setup toolbar
@@ -84,41 +86,35 @@ public class ChangePasswordActivity extends AppCompatActivity {
             return;
         }
         
+        // Check internet
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         // Show loading for password change
         com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Changing password...");
         
-        new Thread(() -> {
-            try {
-            BlotterDatabase db = BlotterDatabase.getDatabase(this);
-            User user = db.userDao().getUserById(userId);
+        // Call API to change password
+        ApiClient.changePassword(userId, currentPass, newPass, new ApiClient.ApiCallback<Object>() {
+            @Override
+            public void onSuccess(Object result) {
+                com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                Toast.makeText(ChangePasswordActivity.this, "Password changed successfully!", Toast.LENGTH_SHORT).show();
+                setResult(RESULT_OK);
+                finish();
+            }
             
-            if (user != null) {
-                // Check current password
-                if (!user.getPassword().equals(currentPass)) {
-                    runOnUiThread(() -> {
-                        com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                        etCurrentPassword.setError("Incorrect password");
-                        etCurrentPassword.requestFocus();
-                    });
-                    return;
+            @Override
+            public void onError(String errorMessage) {
+                com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                if (errorMessage.contains("Incorrect")) {
+                    etCurrentPassword.setError("Incorrect password");
+                    etCurrentPassword.requestFocus();
+                } else {
+                    Toast.makeText(ChangePasswordActivity.this, "Error: " + errorMessage, Toast.LENGTH_SHORT).show();
                 }
-                
-                // Update password
-                user.setPassword(newPass);
-                db.userDao().updateUser(user);
-                
-                runOnUiThread(() -> {
-                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    setResult(RESULT_OK);
-                    finish();
-                });
             }
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    Toast.makeText(this, "Error changing password: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
-            }
-        }).start();
+        });
     }
 }

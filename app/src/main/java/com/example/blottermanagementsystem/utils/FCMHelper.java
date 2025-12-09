@@ -27,9 +27,16 @@ public class FCMHelper {
                     
                     preferencesManager.saveString("fcm_token", token);
                     
-                    int userId = preferencesManager.getUserId();
-                    if (userId > 0) {
-                        sendTokenToServer(userId, token);
+                    String userId = preferencesManager.getUserId();
+                    if (userId != null && !userId.isEmpty()) {
+                        try {
+                            int userIdInt = Integer.parseInt(userId);
+                            if (userIdInt > 0) {
+                                sendTokenToServer(userIdInt, token);
+                            }
+                        } catch (NumberFormatException e) {
+                            Log.e(TAG, "Invalid userId format: " + userId);
+                        }
                     }
                 } else {
                     Log.e(TAG, "Failed to get FCM token", task.getException());
@@ -41,9 +48,9 @@ public class FCMHelper {
         BlotterApiService.FcmTokenRequest request = 
             new BlotterApiService.FcmTokenRequest(userId, token);
         
-        apiRepository.updateFcmToken(request, new ApiRepository.ApiCallback<String>() {
+        apiRepository.updateFcmToken(request, new ApiRepository.ApiCallback<Object>() {
             @Override
-            public void onSuccess(String data) {
+            public void onSuccess(Object data) {
                 Log.d(TAG, "FCM token sent to server");
             }
             

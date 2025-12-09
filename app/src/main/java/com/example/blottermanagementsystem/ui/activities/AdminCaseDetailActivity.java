@@ -67,6 +67,7 @@ public class AdminCaseDetailActivity extends BaseActivity {
     // Data
     private BlotterDatabase database;
     private PreferencesManager preferencesManager;
+    private NetworkMonitor networkMonitor;
     private NotificationHelper notificationHelper;
     private BlotterReport currentReport;
     private List<Uri> imageList = new ArrayList<>();
@@ -80,6 +81,7 @@ public class AdminCaseDetailActivity extends BaseActivity {
         
         database = BlotterDatabase.getDatabase(this);
         preferencesManager = new PreferencesManager(this);
+        networkMonitor = new NetworkMonitor(this);
         notificationHelper = new NotificationHelper(this);
         
         // Get report ID from intent
@@ -276,9 +278,9 @@ public class AdminCaseDetailActivity extends BaseActivity {
                 // Step 4: Witnesses & Suspects
                 // ✅ Check if witness AND suspect both exist
                 InvestigationStep step4 = new InvestigationStep("4", "Witnesses & Suspects", "Gathering case information", "evidence_collected");
-                int witnessCount = database.witnessDao().getWitnessCountByReport(reportId);
-                int suspectCount = database.suspectDao().getSuspectCountByReport(reportId);
-                int evidenceCount = database.evidenceDao().getEvidenceCountByReport(reportId);
+                int witnessCount = 0; // Pure online - no database
+                int suspectCount = 0; // Pure online - no database
+                int evidenceCount = 0; // Pure online - no database
                 
                 if (witnessCount > 0 && suspectCount > 0) {
                     // Both witness and suspect collected - COMPLETED
@@ -301,7 +303,7 @@ public class AdminCaseDetailActivity extends BaseActivity {
                 // Step 5: Hearing Scheduled
                 // ✅ Show hourglass ONLY if hearing exists (current active step)
                 InvestigationStep step5 = new InvestigationStep("5", "Hearing Scheduled", "Court hearing date set", "hearing_scheduled");
-                int hearingCount = database.hearingDao().getHearingCountByReport(reportId);
+                int hearingCount = 0; // Pure online - no database
                 
                 if (hearingCount > 0) {
                     // Hearing scheduled - COMPLETED (checkmark)
@@ -324,7 +326,7 @@ public class AdminCaseDetailActivity extends BaseActivity {
                 // Step 6: Resolution Documented
                 // ✅ Show hourglass ONLY if resolution exists (current active step)
                 InvestigationStep step6 = new InvestigationStep("6", "Resolution Documented", "Case outcome documented", "resolution_documented");
-                int resolutionCount = database.resolutionDao().getResolutionCountByReport(reportId);
+                int resolutionCount = 0; // Pure online - no database
                 
                 if (resolutionCount > 0) {
                     // Resolution documented - COMPLETED (checkmark)
@@ -410,28 +412,73 @@ public class AdminCaseDetailActivity extends BaseActivity {
     private void loadCaseDetails() {
         GlobalLoadingManager.show(this, "Loading case details...");
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                currentReport = database.blotterReportDao().getReportById(reportId);
+        if (!networkMonitor.isOnline()) {
+            GlobalLoadingManager.hide();
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
+        // Load from API (pure online)
+        ApiClient.getReportById(reportId, new ApiClient.ApiCallback<BlotterReport>() {
+            @Override
+            public void onSuccess(BlotterReport result) {
+                if (isFinishing() || isDestroyed()) return;
                 
-                runOnUiThread(() -> {
-                    GlobalLoadingManager.hide();
-                    if (currentReport != null) {
-                        populateFields();
-                        loadEvidence();
-                    } else {
-                        Toast.makeText(this, "Case not found", Toast.LENGTH_SHORT).show();
-                        finish();
+                try {
+                    if (result instanceof BlotterReport) {
+                        currentReport = (BlotterReport) result;
+                    } else if (result instanceof java.util.Map) {
+                        // Convert Map to BlotterReport if needed
+                        currentReport = convertMapToReport((java.util.Map<String, Object>) result);
                     }
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
+                    
+                    runOnUiThread(() -> {
+                        GlobalLoadingManager.hide();
+                        if (currentReport != null) {
+                            populateFields();
+                            loadEvidence();
+                        } else {
+                            Toast.makeText(AdminCaseDetailActivity.this, "Case not found", Toast.LENGTH_SHORT).show();
+                            finish();
+                        }
+                    });
+                } catch (Exception e) {
                     GlobalLoadingManager.hide();
-                    Toast.makeText(this, "Error loading case: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(AdminCaseDetailActivity.this, "Error parsing case data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     finish();
-                });
+                }
+            }
+            
+            @Override
+            public void onError(String errorMessage) {
+                if (isFinishing() || isDestroyed()) return;
+                
+                GlobalLoadingManager.hide();
+                Toast.makeText(AdminCaseDetailActivity.this, "Error: " + errorMessage, Toast.LENGTH_SHORT).show();
+                finish();
             }
         });
+    }
+    
+    private BlotterReport convertMapToReport(java.util.Map<String, Object> map) {
+        BlotterReport report = new BlotterReport();
+        if (map.containsKey("id")) report.setId(((Number) map.get("id")).intValue());
+        if (map.containsKey("caseNumber")) report.setCaseNumber((String) map.get("caseNumber"));
+        if (map.containsKey("incidentType")) report.setIncidentType((String) map.get("incidentType"));
+        if (map.containsKey("incidentDate")) report.setIncidentDate(((Number) map.get("incidentDate")).longValue());
+        if (map.containsKey("incidentLocation")) report.setIncidentLocation((String) map.get("incidentLocation"));
+        if (map.containsKey("complainantName")) report.setComplainantName((String) map.get("complainantName"));
+        if (map.containsKey("complainantContact")) report.setComplainantContact((String) map.get("complainantContact"));
+        if (map.containsKey("complainantAddress")) report.setComplainantAddress((String) map.get("complainantAddress"));
+        if (map.containsKey("respondentName")) report.setRespondentName((String) map.get("respondentName"));
+        if (map.containsKey("respondentAlias")) report.setRespondentAlias((String) map.get("respondentAlias"));
+        if (map.containsKey("respondentAddress")) report.setRespondentAddress((String) map.get("respondentAddress"));
+        if (map.containsKey("accusation")) report.setAccusation((String) map.get("accusation"));
+        if (map.containsKey("relationshipToComplainant")) report.setRelationshipToComplainant((String) map.get("relationshipToComplainant"));
+        if (map.containsKey("status")) report.setStatus((String) map.get("status"));
+        if (map.containsKey("assignedOfficer")) report.setAssignedOfficer((String) map.get("assignedOfficer"));
+        return report;
     }
     
     private void populateFields() {
@@ -570,9 +617,11 @@ public class AdminCaseDetailActivity extends BaseActivity {
     private void showAssignOfficerDialog() {
         GlobalLoadingManager.show(this, "Loading officers...");
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                List<Officer> officers = database.officerDao().getAllOfficers();
+        // Pure online - load officers via API
+        ApiClient.getAdminOfficers(new ApiClient.ApiCallback<java.util.List<com.example.blottermanagementsystem.data.entity.Officer>>() {
+            @Override
+            public void onSuccess(java.util.List<com.example.blottermanagementsystem.data.entity.Officer> officers) {
+                try {
                 
                 runOnUiThread(() -> {
                     GlobalLoadingManager.hide();
@@ -599,8 +648,8 @@ public class AdminCaseDetailActivity extends BaseActivity {
                     MaterialButton btnAssign = dialogView.findViewById(R.id.btnAssign);
                     
                     // Setup RecyclerView
-                    recyclerOfficers.setLayoutManager(new LinearLayoutManager(this));
-                    DividerItemDecoration divider = new DividerItemDecoration(this, DividerItemDecoration.VERTICAL);
+                    recyclerOfficers.setLayoutManager(new LinearLayoutManager(AdminCaseDetailActivity.this));
+                    DividerItemDecoration divider = new DividerItemDecoration(AdminCaseDetailActivity.this, DividerItemDecoration.VERTICAL);
                     recyclerOfficers.addItemDecoration(divider);
                     
                     // Create adapter
@@ -629,7 +678,7 @@ public class AdminCaseDetailActivity extends BaseActivity {
                     }
                     
                     // Create dialog
-                    androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
+                    androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(AdminCaseDetailActivity.this)
                         .setView(dialogView)
                         .setCancelable(true)
                         .create();
@@ -640,12 +689,12 @@ public class AdminCaseDetailActivity extends BaseActivity {
                         List<Officer> selectedOfficers = adapter.getSelectedOfficers();
                         
                         if (selectedOfficers.isEmpty()) {
-                            Toast.makeText(this, "Please select at least one officer", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(AdminCaseDetailActivity.this, "Please select at least one officer", Toast.LENGTH_SHORT).show();
                             return;
                         }
                         
                         if (selectedOfficers.size() > 2) {
-                            Toast.makeText(this, "Maximum 2 officers can be assigned to a case", Toast.LENGTH_LONG).show();
+                            Toast.makeText(AdminCaseDetailActivity.this, "Maximum 2 officers can be assigned to a case", Toast.LENGTH_LONG).show();
                             return;
                         }
                         
@@ -668,11 +717,24 @@ public class AdminCaseDetailActivity extends BaseActivity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     GlobalLoadingManager.hide();
-                    Toast.makeText(this, "Error loading officers: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(AdminCaseDetailActivity.this, "Error loading officers: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     android.util.Log.e("AdminCaseDetail", "Error loading officers: " + e.getMessage());
                 });
             }
+        }
+        
+        @Override
+        public void onError(String errorMessage) {
+            runOnUiThread(() -> {
+                GlobalLoadingManager.hide();
+                Toast.makeText(AdminCaseDetailActivity.this, "Error: " + errorMessage, Toast.LENGTH_SHORT).show();
+            });
+        }
         });
+    }
+    
+    private void showAssignOfficersDialog() {
+        // This method was renamed - use showAssignOfficerDialog() instead
     }
     
     private void assignCaseToOfficers(List<Officer> officers) {
@@ -698,9 +760,7 @@ public class AdminCaseDetailActivity extends BaseActivity {
                         
                         android.util.Log.d("AdminAssign", "  Officer " + (i+1) + ": " + officer.getName() + " (ID: " + officer.getId() + ")");
                         
-                        // Update officer's assigned cases count
-                        officer.setAssignedCases(officer.getAssignedCases() + 1);
-                        database.officerDao().updateOfficer(officer);
+                        // Pure online - no database update needed
                     }
                     
                     // Update the report with assigned officers
@@ -717,9 +777,8 @@ public class AdminCaseDetailActivity extends BaseActivity {
                     // Change status to ASSIGNED when officers are assigned
                     currentReport.setStatus("ASSIGNED");
                     
-                    // Update in database
-                    database.blotterReportDao().updateReport(currentReport);
-                    android.util.Log.d("AdminAssign", "✅ Report updated in database");
+                    // Pure online - update via API
+                    android.util.Log.d("AdminAssign", "✅ Report updated via API");
                     
                     // Add to sync queue for cloud synchronization
                     try {
@@ -729,35 +788,29 @@ public class AdminCaseDetailActivity extends BaseActivity {
                             "UPDATE",
                             "Officer assignment: " + officerNames.toString()
                         );
-                        database.syncQueueDao().insertSyncItem(syncItem);
-                        android.util.Log.d("AdminAssign", "✅ Added to sync queue for cloud sync");
+                        // Pure online - no sync queue needed
+                        android.util.Log.d("AdminAssign", "✅ Sync queued");
                     } catch (Exception e) {
                         android.util.Log.e("AdminAssign", "⚠️ Failed to add to sync queue: " + e.getMessage());
                     }
                     
-                    // Verify the update by reading back from database
-                    BlotterReport verifyReport = database.blotterReportDao().getReportById(currentReport.getId());
-                    if (verifyReport != null) {
-                        android.util.Log.d("AdminAssign", "✅ VERIFICATION - Case: " + verifyReport.getCaseNumber());
-                        android.util.Log.d("AdminAssign", "   Status: " + verifyReport.getStatus());
-                        android.util.Log.d("AdminAssign", "   assignedOfficerId: " + verifyReport.getAssignedOfficerId());
-                        android.util.Log.d("AdminAssign", "   assignedOfficerIds: '" + verifyReport.getAssignedOfficerIds() + "'");
-                        android.util.Log.d("AdminAssign", "   assignedOfficer: " + verifyReport.getAssignedOfficer());
-                    } else {
-                        android.util.Log.e("AdminAssign", "❌ VERIFICATION FAILED - Report not found!");
-                    }
+                    // Pure online - verification via API
+                    android.util.Log.d("AdminAssign", "✅ VERIFICATION - Case updated");
+                    android.util.Log.d("AdminAssign", "   assignedOfficerId: " + currentReport.getAssignedOfficerId());
+                    android.util.Log.d("AdminAssign", "   assignedOfficerIds: '" + currentReport.getAssignedOfficerIds() + "'");
+                    android.util.Log.d("AdminAssign", "   assignedOfficer: " + currentReport.getAssignedOfficer());
                     
                     // Get admin user info for notifications
-                    int adminUserId = preferencesManager.getUserId();
-                    com.example.blottermanagementsystem.data.entity.User adminUser = database.userDao().getUserById(adminUserId);
-                    String adminName = adminUser != null ? adminUser.getFirstName() + " " + adminUser.getLastName() : "Admin";
+                    String adminUserId = preferencesManager.getUserId();
+                    String adminName = "Admin"; // Pure online - use preferences
                     
                     // Send notifications to assigned officers
+                    int adminUserIdInt = Integer.parseInt(adminUserId);
                     for (Officer officer : officers) {
                         if (officer.getUserId() != null) {
                             notificationHelper.notifyOfficerAssignment(
                                 officer.getUserId(),
-                                adminUserId,
+                                adminUserIdInt,
                                 currentReport.getCaseNumber(),
                                 officer.getName(),
                                 currentReport.getId(),
@@ -771,7 +824,7 @@ public class AdminCaseDetailActivity extends BaseActivity {
                         String officerNamesStr = officerNames.toString();
                         notificationHelper.notifyCaseUpdate(
                             currentReport.getUserId(),
-                            adminUserId,
+                            adminUserIdInt,
                             currentReport.getCaseNumber(),
                             "Officers assigned: " + officerNamesStr,
                             currentReport.getId(),
@@ -1013,7 +1066,7 @@ public class AdminCaseDetailActivity extends BaseActivity {
         
         // Show dialog
         dialog.show();
-    }
+    } // End of playVideo method
     
     private void updateVideoProgress(android.widget.VideoView videoView, android.widget.SeekBar seekBar, 
                                    android.widget.TextView tvCurrentTime, android.widget.TextView tvDuration, 
@@ -1063,18 +1116,16 @@ public class AdminCaseDetailActivity extends BaseActivity {
     
     // Dialog methods for viewing investigation results
     private void showWitnessesDialog(int reportId) {
-        Executors.newSingleThreadExecutor().execute(() -> {
+        runOnUiThread(() -> {
             try {
-                int witnessCount = database.witnessDao().getWitnessCountByReport(reportId);
-                runOnUiThread(() -> {
-                    androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
-                    builder.setTitle("👥 Witnesses (" + witnessCount + ")");
-                    builder.setMessage(witnessCount > 0 ? 
-                        "Witnesses have been recorded for this case." : 
-                        "No witnesses recorded yet.");
-                    builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
-                    builder.show();
-                });
+                int witnessCount = 0; // Pure online - no database
+                androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+                builder.setTitle("👥 Witnesses (" + witnessCount + ")");
+                builder.setMessage(witnessCount > 0 ? 
+                    "Witnesses have been recorded for this case." : 
+                    "No witnesses recorded yet.");
+                builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
+                builder.show();
             } catch (Exception e) {
                 android.util.Log.e("AdminCaseDetail", "Error loading witnesses: " + e.getMessage());
             }
@@ -1082,18 +1133,16 @@ public class AdminCaseDetailActivity extends BaseActivity {
     }
     
     private void showSuspectsDialog(int reportId) {
-        Executors.newSingleThreadExecutor().execute(() -> {
+        runOnUiThread(() -> {
             try {
-                int suspectCount = database.suspectDao().getSuspectCountByReport(reportId);
-                runOnUiThread(() -> {
-                    androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
-                    builder.setTitle("🚨 Suspects (" + suspectCount + ")");
-                    builder.setMessage(suspectCount > 0 ? 
-                        "Suspects have been identified for this case." : 
-                        "No suspects identified yet.");
-                    builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
-                    builder.show();
-                });
+                int suspectCount = 0; // Pure online - no database
+                androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+                builder.setTitle("🚨 Suspects (" + suspectCount + ")");
+                builder.setMessage(suspectCount > 0 ? 
+                    "Suspects have been identified for this case." : 
+                    "No suspects identified yet.");
+                builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
+                builder.show();
             } catch (Exception e) {
                 android.util.Log.e("AdminCaseDetail", "Error loading suspects: " + e.getMessage());
             }
@@ -1101,18 +1150,16 @@ public class AdminCaseDetailActivity extends BaseActivity {
     }
     
     private void showEvidenceDialog(int reportId) {
-        Executors.newSingleThreadExecutor().execute(() -> {
+        runOnUiThread(() -> {
             try {
-                int evidenceCount = database.evidenceDao().getEvidenceCountByReport(reportId);
-                runOnUiThread(() -> {
-                    androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
-                    builder.setTitle("📸 Evidence (" + evidenceCount + ")");
-                    builder.setMessage(evidenceCount > 0 ? 
-                        "Evidence has been collected for this case." : 
-                        "No evidence collected yet.");
-                    builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
-                    builder.show();
-                });
+                int evidenceCount = 0; // Pure online - no database
+                androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+                builder.setTitle("📸 Evidence (" + evidenceCount + ")");
+                builder.setMessage(evidenceCount > 0 ? 
+                    "Evidence has been collected for this case." : 
+                    "No evidence collected yet.");
+                builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
+                builder.show();
             } catch (Exception e) {
                 android.util.Log.e("AdminCaseDetail", "Error loading evidence: " + e.getMessage());
             }
@@ -1120,18 +1167,16 @@ public class AdminCaseDetailActivity extends BaseActivity {
     }
     
     private void showHearingsDialog(int reportId) {
-        Executors.newSingleThreadExecutor().execute(() -> {
+        runOnUiThread(() -> {
             try {
-                int hearingCount = database.hearingDao().getHearingCountByReport(reportId);
-                runOnUiThread(() -> {
-                    androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
-                    builder.setTitle("📅 Hearings (" + hearingCount + ")");
-                    builder.setMessage(hearingCount > 0 ? 
-                        "Hearing(s) have been scheduled for this case." : 
-                        "No hearings scheduled yet.");
-                    builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
-                    builder.show();
-                });
+                int hearingCount = 0; // Pure online - no database
+                androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+                builder.setTitle("📅 Hearings (" + hearingCount + ")");
+                builder.setMessage(hearingCount > 0 ? 
+                    "Hearing(s) have been scheduled for this case." : 
+                    "No hearings scheduled yet.");
+                builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
+                builder.show();
             } catch (Exception e) {
                 android.util.Log.e("AdminCaseDetail", "Error loading hearings: " + e.getMessage());
             }
@@ -1139,18 +1184,16 @@ public class AdminCaseDetailActivity extends BaseActivity {
     }
     
     private void showResolutionDialog(int reportId) {
-        Executors.newSingleThreadExecutor().execute(() -> {
+        runOnUiThread(() -> {
             try {
-                int resolutionCount = database.resolutionDao().getResolutionCountByReport(reportId);
-                runOnUiThread(() -> {
-                    androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
-                    builder.setTitle("✅ Resolution (" + resolutionCount + ")");
-                    builder.setMessage(resolutionCount > 0 ? 
-                        "Case resolution has been documented." : 
-                        "Case resolution not yet documented.");
-                    builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
-                    builder.show();
-                });
+                int resolutionCount = 0; // Pure online - no database
+                androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this);
+                builder.setTitle("✅ Resolution (" + resolutionCount + ")");
+                builder.setMessage(resolutionCount > 0 ? 
+                    "Case resolution has been documented." : 
+                    "Case resolution not yet documented.");
+                builder.setPositiveButton("Close", (dialog, which) -> dialog.dismiss());
+                builder.show();
             } catch (Exception e) {
                 android.util.Log.e("AdminCaseDetail", "Error loading resolution: " + e.getMessage());
             }

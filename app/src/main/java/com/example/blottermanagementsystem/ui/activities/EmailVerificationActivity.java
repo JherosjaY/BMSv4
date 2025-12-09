@@ -295,9 +295,9 @@ public class EmailVerificationActivity extends AppCompatActivity {
         
         // Call backend API
         com.example.blottermanagementsystem.utils.ApiClient.verifyEmail(userEmail, code,
-            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<String>() {
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
                 @Override
-                public void onSuccess(String result) {
+                public void onSuccess(Object result) {
                     android.util.Log.d("EmailVerification", "✅ Email verified successfully!");
                     showLoading(false);
                     Toast.makeText(EmailVerificationActivity.this, "Email verified successfully!", Toast.LENGTH_SHORT).show();
@@ -329,7 +329,8 @@ public class EmailVerificationActivity extends AppCompatActivity {
         String verificationType = getIntent().getStringExtra("type");
         
         if ("registration".equals(verificationType)) {
-            // ✅ Registration flow: Save user to database NOW (after email verified)
+            // ✅ PURE ONLINE: Registration flow - User already created via API during registration
+            // Email verification just marks the email as verified
             Executors.newSingleThreadExecutor().execute(() -> {
                 try {
                     PreferencesManager preferencesManager = new PreferencesManager(this);
@@ -339,36 +340,28 @@ public class EmailVerificationActivity extends AppCompatActivity {
                     String tempEmail = preferencesManager.getTempEmail();
                     String tempPassword = preferencesManager.getTempPassword();
                     
-                    android.util.Log.d("EmailVerification", "✅ Email verified! Now saving user to database...");
+                    android.util.Log.d("EmailVerification", "✅ Email verified! User already created via API");
                     android.util.Log.d("EmailVerification", "  Username: " + tempUsername);
                     android.util.Log.d("EmailVerification", "  Email: " + tempEmail);
                     
                     if (tempUsername != null && tempEmail != null && tempPassword != null) {
-                        // Create user object
-                        com.example.blottermanagementsystem.data.entity.User newUser = 
-                            new com.example.blottermanagementsystem.data.entity.User("User", "Account", tempUsername, tempPassword, "User");
-                        newUser.setEmail(tempEmail);
-                        newUser.setAuthMethod("EMAIL_PASSWORD");
-                        
-                        // Save to database
-                        com.example.blottermanagementsystem.data.database.BlotterDatabase database = 
-                            com.example.blottermanagementsystem.data.database.BlotterDatabase.getDatabase(this);
-                        
-                        long userId = database.userDao().insertUser(newUser);
-                        android.util.Log.d("EmailVerification", "✅ User saved to database with ID: " + userId);
-                        
-                        // Clear temp data
+                        // ✅ PURE ONLINE: User was already created during registration via API
+                        // Just clear temp data and navigate
                         preferencesManager.clearTempUserData();
                         
+                        // Get userId from preferences (set during registration)
+                        String userId = preferencesManager.getUserId();
+                        
                         // Save to PreferencesManager
-                        preferencesManager.setUserId((int) userId);
                         preferencesManager.setLoggedIn(true);
                         preferencesManager.setUserRole("User");
+                        
+                        android.util.Log.d("EmailVerification", "✅ Email verified for user: " + userId);
                         
                         runOnUiThread(() -> {
                             // Navigate to Profile Picture Selection
                             Intent intent = new Intent(this, ProfilePictureSelectionActivity.class);
-                            intent.putExtra("USER_ID", (int) userId);
+                            intent.putExtra("USER_ID", userId);
                             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                             startActivity(intent);
                             finish();

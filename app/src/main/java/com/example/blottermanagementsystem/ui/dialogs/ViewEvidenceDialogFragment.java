@@ -16,7 +16,10 @@ import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Evidence;
 import com.example.blottermanagementsystem.ui.adapters.EvidenceListAdapter;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import com.google.android.material.card.MaterialCardView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +33,7 @@ public class ViewEvidenceDialogFragment extends DialogFragment {
     private MaterialCardView cardContainer;
     private EvidenceListAdapter adapter;
     private List<Evidence> evidenceList = new ArrayList<>();
+    private NetworkMonitor networkMonitor;
     
     public static ViewEvidenceDialogFragment newInstance(int reportId) {
         ViewEvidenceDialogFragment fragment = new ViewEvidenceDialogFragment();
@@ -43,6 +47,7 @@ public class ViewEvidenceDialogFragment extends DialogFragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Material_Dialog_MinWidth);
+        networkMonitor = new NetworkMonitor(getContext());
         if (getArguments() != null) {
             reportId = getArguments().getInt("report_id");
         }

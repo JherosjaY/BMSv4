@@ -13,10 +13,13 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Suspect;
 import com.example.blottermanagementsystem.ui.adapters.SuspectListAdapter;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
+import android.widget.Toast;
 
+import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -28,6 +31,7 @@ public class ViewSuspectsDialogFragment extends DialogFragment {
     private TextView tvEmptyState;
     private SuspectListAdapter adapter;
     private List<Suspect> suspectList = new ArrayList<>();
+    private NetworkMonitor networkMonitor;
     
     public static ViewSuspectsDialogFragment newInstance(int reportId) {
         ViewSuspectsDialogFragment fragment = new ViewSuspectsDialogFragment();
@@ -41,6 +45,7 @@ public class ViewSuspectsDialogFragment extends DialogFragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setStyle(DialogFragment.STYLE_NO_FRAME, android.R.style.Theme_Material_Dialog_MinWidth);
+        networkMonitor = new NetworkMonitor(getContext());
         if (getArguments() != null) {
             reportId = getArguments().getInt("report_id");
         }

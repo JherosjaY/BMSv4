@@ -5,7 +5,7 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
+// import com.example.blottermanagementsystem.data.database.BlotterDatabase; // Pure online
 import com.example.blottermanagementsystem.data.entity.BlotterReport;
 import com.example.blottermanagementsystem.data.entity.Officer;
 import com.example.blottermanagementsystem.data.entity.User;
@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 
 public class DashboardViewModel extends AndroidViewModel {
-    private final BlotterDatabase database;
+    // private final BlotterDatabase database; // Pure online
     private final MutableLiveData<List<BlotterReport>> allReports = new MutableLiveData<>();
     private final MutableLiveData<List<User>> allUsers = new MutableLiveData<>();
     private final MutableLiveData<List<Officer>> allOfficers = new MutableLiveData<>();
@@ -21,15 +21,15 @@ public class DashboardViewModel extends AndroidViewModel {
     
     public DashboardViewModel(@NonNull Application application) {
         super(application);
-        database = BlotterDatabase.getDatabase(application);
+        // database = BlotterDatabase.getDatabase(application); // Pure online
         loadData();
     }
     
     private void loadData() {
         Executors.newSingleThreadExecutor().execute(() -> {
-            List<BlotterReport> reports = database.blotterReportDao().getAllReports();
-            List<User> users = database.userDao().getAllUsers();
-            List<Officer> officers = database.officerDao().getAllOfficers();
+            List<BlotterReport> reports = new java.util.ArrayList<>(); // Pure online
+            List<User> users = new java.util.ArrayList<>(); // Pure online
+            List<Officer> officers = new java.util.ArrayList<>(); // Pure online
             
             allReports.postValue(reports);
             allUsers.postValue(users);
@@ -64,7 +64,7 @@ public class DashboardViewModel extends AndroidViewModel {
     }
     
     public BlotterReport getReportByIdDirect(int reportId) {
-        return database.blotterReportDao().getReportById(reportId);
+        return null; // Pure online
     }
     
     public void refreshData() {

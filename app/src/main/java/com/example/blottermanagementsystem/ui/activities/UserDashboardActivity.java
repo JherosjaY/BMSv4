@@ -126,12 +126,12 @@ public class UserDashboardActivity extends BaseActivity {
     
     private void loadUserFromDatabase() {
         // CRITICAL FIX: Try to get user ID from PreferencesManager first
-        int userId = preferencesManager.getUserId();
+        String userId = preferencesManager.getUserId();
         android.util.Log.d("UserDashboard", "=== LOADING USER FROM DATABASE ===");
         android.util.Log.d("UserDashboard", "UserID from PreferencesManager: " + userId);
         
         // If PreferencesManager fails, try to get the LAST logged in user from database
-        if (userId == -1) {
+        if (userId == null || userId.isEmpty() || userId.equals("-1")) {
             android.util.Log.e("UserDashboard", "⚠️ PreferencesManager returned -1, checking database for last user");
             Executors.newSingleThreadExecutor().execute(() -> {
                 java.util.List<User> allUsers = database.userDao().getAllUsers();
@@ -151,7 +151,7 @@ public class UserDashboardActivity extends BaseActivity {
                     android.util.Log.d("UserDashboard", "✅ Using user from database: " + currentUser.getUsername());
                     
                     // Save to PreferencesManager for future use
-                    preferencesManager.setUserId(currentUser.getId());
+                    preferencesManager.setUserId(String.valueOf(currentUser.getId()));
                     preferencesManager.setLoggedIn(true);
                     preferencesManager.setUserRole(currentUser.getRole());
                     preferencesManager.setFirstName(currentUser.getFirstName());
@@ -182,7 +182,8 @@ public class UserDashboardActivity extends BaseActivity {
         android.util.Log.d("UserDashboard", "Last name from prefs: " + preferencesManager.getLastName());
         
         Executors.newSingleThreadExecutor().execute(() -> {
-            User currentUser = database.userDao().getUserById(userId);
+            int userIdInt = Integer.parseInt(userId);
+            User currentUser = database.userDao().getUserById(userIdInt);
             android.util.Log.d("UserDashboard", "User loaded: " + (currentUser != null ? currentUser.getUsername() : "NULL"));
             
             runOnUiThread(() -> {
@@ -210,11 +211,12 @@ public class UserDashboardActivity extends BaseActivity {
     private void loadProfilePicture() {
         if (ivUserProfile == null) return;
         
-        int userId = preferencesManager.getUserId();
+        String userId = preferencesManager.getUserId();
         
         // Load from database for real-time sync
         Executors.newSingleThreadExecutor().execute(() -> {
-            User user = database.userDao().getUserById(userId);
+            int userIdInt = Integer.parseInt(userId);
+            User user = database.userDao().getUserById(userIdInt);
             String profileImageUri = null;
             
             if (user != null && user.getProfilePhotoUri() != null && !user.getProfilePhotoUri().isEmpty()) {
@@ -450,8 +452,9 @@ public class UserDashboardActivity extends BaseActivity {
                     
                     // Filter reports by current user
                     List<BlotterReport> userReports = new ArrayList<>();
+                    int userIdInt = Integer.parseInt(userId);
                     for (BlotterReport report : allReports) {
-                        if (report.getReportedById().equals(userId)) {
+                        if (report.getReportedById() == userIdInt) {
                             userReports.add(report);
                         }
                     }
@@ -525,7 +528,7 @@ public class UserDashboardActivity extends BaseActivity {
     
     // Quiet data loading without GlobalLoadingManager to prevent black screen flicker
     private void loadDataQuietly() {
-        int userId = preferencesManager.getUserId();
+        String userId = preferencesManager.getUserId();
         
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
@@ -533,8 +536,9 @@ public class UserDashboardActivity extends BaseActivity {
                 
                 // Filter reports by current user
                 List<BlotterReport> userReports = new ArrayList<>();
+                int userIdInt = Integer.parseInt(userId);
                 for (BlotterReport report : allReports) {
-                    if (report.getReportedById() == userId) {
+                    if (report.getReportedById() == userIdInt) {
                         userReports.add(report);
                     }
                 }
@@ -598,11 +602,12 @@ public class UserDashboardActivity extends BaseActivity {
     }
 
     private void updateNotificationBadge() {
-        int userId = preferencesManager.getUserId();
+        String userId = preferencesManager.getUserId();
         
         Executors.newSingleThreadExecutor().execute(() -> {
             // Get unread notification count
-            int unreadCount = database.notificationDao().getUnreadCount(userId);
+            int userIdInt = Integer.parseInt(userId);
+            int unreadCount = database.notificationDao().getUnreadCount(userIdInt);
             
             runOnUiThread(() -> {
                 android.util.Log.d("UserDashboard", "Unread notifications: " + unreadCount);
@@ -1122,10 +1127,11 @@ public class UserDashboardActivity extends BaseActivity {
      * Check if user has seen tooltips and show if not (per-user, not per-device)
      */
     private void checkAndShowTutorial() {
-        int userId = preferencesManager.getUserId();
+        String userId = preferencesManager.getUserId();
         
         Executors.newSingleThreadExecutor().execute(() -> {
-            User currentUser = database.userDao().getUserById(userId);
+            int userIdInt = Integer.parseInt(userId);
+            User currentUser = database.userDao().getUserById(userIdInt);
             
             runOnUiThread(() -> {
                 if (currentUser != null && !currentUser.hasSeenTooltips()) {
@@ -1140,10 +1146,11 @@ public class UserDashboardActivity extends BaseActivity {
      * Mark tutorial as completed in database (per-user)
      */
     private void markTutorialCompleted() {
-        int userId = preferencesManager.getUserId();
+        String userId = preferencesManager.getUserId();
         
         Executors.newSingleThreadExecutor().execute(() -> {
-            User currentUser = database.userDao().getUserById(userId);
+            int userIdInt = Integer.parseInt(userId);
+            User currentUser = database.userDao().getUserById(userIdInt);
             
             if (currentUser != null) {
                 currentUser.setHasSeenTooltips(true);

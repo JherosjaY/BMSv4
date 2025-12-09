@@ -49,6 +49,9 @@ public class RegisterActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
         
+        // ✅ Initialize API Client
+        com.example.blottermanagementsystem.data.api.ApiClient.initApiClient(this);
+        
         preferencesManager = new PreferencesManager(this);
         setupGoogleSignIn();
         initViews();
@@ -95,7 +98,7 @@ public class RegisterActivity extends BaseActivity {
                 showLoading(true);
             } else if (authState == AuthViewModel.AuthState.SUCCESS) {
                 showLoading(false);
-                handleRegisterSuccess();
+                // ✅ Navigation handled in attemptApiRegister callback
             } else if (authState == AuthViewModel.AuthState.EMAIL_EXISTS) {
                 showLoading(false);
                 showError("This email is already registered. Please use a different email or sign in.");
@@ -174,7 +177,7 @@ public class RegisterActivity extends BaseActivity {
                             
                             runOnUiThread(() -> {
                                 // Save user ID and data to preferences
-                                preferencesManager.setUserId(userId);
+                                preferencesManager.setUserId(String.valueOf(userId));
                                 preferencesManager.setLoggedIn(true);
                                 preferencesManager.setUserRole("User");
                                 preferencesManager.setFirstName(firstName);
@@ -262,104 +265,35 @@ public class RegisterActivity extends BaseActivity {
      * Pure Online Registration via API (Neon database only)
      */
     private void attemptApiRegister(String username, String email, String password) {
-        com.example.blottermanagementsystem.utils.ApiClient.register(username, email, password, 
+        // ✅ CALL API TO CREATE ACCOUNT IN NEON
+        com.example.blottermanagementsystem.utils.ApiClient.register(username, email, password, password,
             new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
                 @Override
-                public void onSuccess(Object registerResponseObj) {
-                    android.util.Log.d("RegisterActivity", "✅ API registration successful");
+                public void onSuccess(Object response) {
+                    android.util.Log.d("RegisterActivity", "✅ API registration successful!");
+                    showLoading(false);
+                    Toast.makeText(RegisterActivity.this, "Registration successful! Please verify your email.", Toast.LENGTH_SHORT).show();
                     
-                    try {
-                        // Extract user from response
-                        Object dataObj = registerResponseObj.getClass().getField("data").get(registerResponseObj);
-                        com.example.blottermanagementsystem.data.entity.User newUser = 
-                            (com.example.blottermanagementsystem.data.entity.User) dataObj.getClass().getField("user").get(dataObj);
-                        
-                        android.util.Log.d("RegisterActivity", "✅ User registered: " + newUser.getId());
-                        
-                        showLoading(false);
-                        Toast.makeText(RegisterActivity.this, 
-                            "Registration successful! Please log in.", 
-                            Toast.LENGTH_SHORT).show();
-                        
-                        // Navigate to login screen
-                        Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
-                        startActivity(intent);
-                        finish();
-                        
-                    } catch (Exception e) {
-                        android.util.Log.e("RegisterActivity", "❌ Error processing registration response: " + e.getMessage(), e);
-                        showError("Error processing registration response");
-                        showLoading(false);
-                    }
+                    // ✅ Save temp user data for EmailVerificationActivity
+                    preferencesManager.setUsername(username);
+                    preferencesManager.setTempEmail(email);
+                    preferencesManager.setTempPassword(password);
+                    
+                    // Navigate to EmailVerificationActivity
+                    Intent intent = new Intent(RegisterActivity.this, EmailVerificationActivity.class);
+                    intent.putExtra("email", email);
+                    intent.putExtra("type", "registration");
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
                 }
                 
-                @Override
                 public void onError(String errorMessage) {
                     android.util.Log.e("RegisterActivity", "❌ API registration failed: " + errorMessage);
-                    showError("Registration failed: " + errorMessage);
                     showLoading(false);
+                    showError("Registration failed: " + errorMessage);
                 }
             });
-    }
-    
-    private void handleRegisterSuccess() {
-        // This method is no longer used
-        // Pure online registration handles the flow
-    }
-    
-    private void showCredentialsDialog(String userName, String username, String password) {
-        try {
-            // Inflate custom dialog layout
-            android.view.LayoutInflater inflater = getLayoutInflater();
-            android.view.View dialogView = inflater.inflate(R.layout.dialog_user_credentials, null);
-            
-            // Get views from dialog
-            android.widget.TextView tvUserName = dialogView.findViewById(R.id.tvUserName);
-            android.widget.TextView tvUsername = dialogView.findViewById(R.id.tvUsername);
-            android.widget.TextView tvPassword = dialogView.findViewById(R.id.tvPassword);
-            MaterialButton btnCopyCredentials = dialogView.findViewById(R.id.btnCopyCredentials);
-            MaterialButton btnDone = dialogView.findViewById(R.id.btnDone);
-            
-            // Set data
-            tvUserName.setText(userName);
-            tvUsername.setText(username);
-            tvPassword.setText(password);
-            
-            // Create dialog
-            AlertDialog dialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setView(dialogView)
-                .setCancelable(false)
-                .create();
-            
-            // Set button listeners
-            btnCopyCredentials.setOnClickListener(v -> {
-                // Copy both username and password
-                String credentials = "Username: " + username + "\nPassword: " + password;
-                copyToClipboard("Credentials", credentials);
-                Toast.makeText(this, "Credentials copied to clipboard", Toast.LENGTH_SHORT).show();
-            });
-            
-            btnDone.setOnClickListener(v -> {
-                dialog.dismiss();
-                // Navigate to Login screen
-                Intent intent = new Intent(this, LoginActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
-                finish();
-            });
-            
-            // Show dialog
-            dialog.show();
-            
-            android.util.Log.d("Register", "Dialog shown successfully");
-        } catch (Exception e) {
-            android.util.Log.e("Register", "Error showing dialog", e);
-            // Navigate to Login screen without showing toast
-            Intent intent = new Intent(this, LoginActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
-        }
     }
     
     private void copyToClipboard(String label, String text) {
@@ -367,7 +301,6 @@ public class RegisterActivity extends BaseActivity {
         ClipData clip = ClipData.newPlainText(label, text);
         clipboard.setPrimaryClip(clip);
     }
-    
     private void showLoading(boolean show) {
         if (show) {
             com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Creating account...");

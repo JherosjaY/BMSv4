@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 public class ApiConfig {
     
     // Cloud API Base URL (for production)
-    private static final String BASE_URL = "https://blotter-backend.onrender.com/";
+    private static final String BASE_URL = "https://bms-backend-exeb.onrender.com/";
     
     // Localhost API Base URL (for development)
     // Use 10.0.2.2 for Android Emulator (maps to host machine's localhost)

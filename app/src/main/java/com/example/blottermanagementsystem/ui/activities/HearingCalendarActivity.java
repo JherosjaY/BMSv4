@@ -4,20 +4,20 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.CalendarView;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Hearing;
-import com.example.blottermanagementsystem.data.entity.BlotterReport;
 import com.example.blottermanagementsystem.ui.adapters.HearingAdapter;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
 import com.example.blottermanagementsystem.utils.RoleAccessControl;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class HearingCalendarActivity extends BaseActivity {
     
@@ -25,7 +25,7 @@ public class HearingCalendarActivity extends BaseActivity {
     private RecyclerView recyclerView;
     private HearingAdapter adapter;
     private TextView tvEmpty, tvSelectedDate;
-    private BlotterDatabase database;
+    private NetworkMonitor networkMonitor;
     private long selectedDate;
     
     @Override
@@ -39,7 +39,7 @@ public class HearingCalendarActivity extends BaseActivity {
         
         setContentView(R.layout.activity_hearing_calendar);
         
-        database = BlotterDatabase.getDatabase(this);
+        networkMonitor = new NetworkMonitor(this);
         selectedDate = System.currentTimeMillis();
         
         setupToolbar();
@@ -81,37 +81,25 @@ public class HearingCalendarActivity extends BaseActivity {
     }
     
     private void loadHearingsForDate(long date) {
-        new Thread(() -> {
-            try {
-                // ✅ Get current admin user ID
-                PreferencesManager preferencesManager = new PreferencesManager(this);
-                int adminId = preferencesManager.getUserId();
-                
-                // ✅ Check if admin has assigned cases (if they're also an officer)
-                List<BlotterReport> assignedReports = database.blotterReportDao().getReportsByAssignedOfficer(adminId);
-                
-                // ✅ Get hearings - if admin has assigned cases, show only those; otherwise show all
-                List<Hearing> allHearings;
-                if (assignedReports != null && !assignedReports.isEmpty()) {
-                    // Admin has assigned cases - show only their hearings
-                    List<Integer> reportIds = new ArrayList<>();
-                    for (BlotterReport report : assignedReports) {
-                        reportIds.add(report.getId());
-                    }
-                    allHearings = database.hearingDao().getHearingsByReportIds(reportIds);
-                } else {
-                    // Pure admin with no assigned cases - show all hearings
-                    allHearings = database.hearingDao().getAllHearings();
-                }
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            recyclerView.setVisibility(View.GONE);
+            tvEmpty.setVisibility(View.VISIBLE);
+            return;
+        }
+        
+        // Load from API (pure online)
+        ApiClient.getHearingsCalendar(new ApiClient.ApiCallback<List<Hearing>>() {
+            @Override
+            public void onSuccess(List<Hearing> allHearings) {
+                if (isFinishing() || isDestroyed()) return;
                 
                 // Filter hearings for selected date
                 Calendar selectedCal = Calendar.getInstance();
                 selectedCal.setTimeInMillis(date);
                 
-                // TODO: Fix date filtering - hearingDate is String, needs conversion
-                List<Hearing> hearingsForDate = allHearings; // Show all for now
-                // .filter(hearing -> isSameDay(hearing.getHearingDate(), date))
-                // .collect(Collectors.toList());
+                // Show all hearings for now (date filtering can be added later)
+                List<Hearing> hearingsForDate = allHearings;
                 
                 runOnUiThread(() -> {
                     tvSelectedDate.setText(android.text.format.DateFormat.format("MMMM dd, yyyy", date));
@@ -125,14 +113,20 @@ public class HearingCalendarActivity extends BaseActivity {
                         adapter.setHearings(hearingsForDate);
                     }
                 });
-            } catch (Exception e) {
-                android.util.Log.e("HearingCalendar", "Error loading hearings: " + e.getMessage(), e);
+            }
+            
+            @Override
+            public void onError(String errorMessage) {
+                if (isFinishing() || isDestroyed()) return;
+                
+                android.util.Log.e("HearingCalendar", "Error loading hearings: " + errorMessage);
                 runOnUiThread(() -> {
+                    Toast.makeText(HearingCalendarActivity.this, "Error: " + errorMessage, Toast.LENGTH_SHORT).show();
                     tvEmpty.setVisibility(View.VISIBLE);
                     recyclerView.setVisibility(View.GONE);
                 });
             }
-        }).start();
+        });
     }
     
     private boolean isSameDay(long date1, long date2) {

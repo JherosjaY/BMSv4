@@ -5,13 +5,13 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
+// import com.example.blottermanagementsystem.data.database.BlotterDatabase; // Pure online
 import com.example.blottermanagementsystem.data.entity.User;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
 import java.util.concurrent.Executors;
 
 public class AuthViewModel extends AndroidViewModel {
-    private final BlotterDatabase database;
+    // private final BlotterDatabase database; // Pure online
     private final PreferencesManager preferencesManager;
     private final MutableLiveData<AuthState> authState = new MutableLiveData<>(AuthState.IDLE);
     private final MutableLiveData<AuthState> registerState = new MutableLiveData<>(AuthState.IDLE);
@@ -25,7 +25,7 @@ public class AuthViewModel extends AndroidViewModel {
     
     public AuthViewModel(@NonNull Application application) {
         super(application);
-        database = BlotterDatabase.getDatabase(application);
+        // database = BlotterDatabase.getDatabase(application); // Pure online
         preferencesManager = new PreferencesManager(application);
     }
     
@@ -45,13 +45,13 @@ public class AuthViewModel extends AndroidViewModel {
             android.util.Log.d("AuthViewModel", "Username: " + username);
             
             // Check total users in database
-            java.util.List<User> allUsers = database.userDao().getAllUsers();
+            java.util.List<User> allUsers = new java.util.ArrayList<>(); // Pure online
             android.util.Log.d("AuthViewModel", "Total users in database: " + allUsers.size());
             for (User u : allUsers) {
                 android.util.Log.d("AuthViewModel", "  User: ID=" + u.getId() + ", Username=" + u.getUsername() + ", FirstName=" + u.getFirstName());
             }
             
-            User user = database.userDao().getUserByUsername(username);
+            User user = null; // Pure online - no database
             
             if (user == null) {
                 // User doesn't exist - let's check for similar usernames
@@ -93,7 +93,7 @@ public class AuthViewModel extends AndroidViewModel {
                     
                     // Update database with correct role
                     user.setRole(detectedRole);
-                    database.userDao().updateUser(user);
+                    // database.userDao().updateUser(user); // Pure online
                 } else {
                     currentUserRole = user.getRole();
                 }
@@ -101,7 +101,7 @@ public class AuthViewModel extends AndroidViewModel {
                 android.util.Log.d("AuthViewModel", "Final Role: " + currentUserRole);
                 
                 preferencesManager.setLoggedIn(true);
-                preferencesManager.setUserId(user.getId());
+                preferencesManager.setUserId(String.valueOf(user.getId()));
                 preferencesManager.setUserRole(currentUserRole); // Use detected role
                 preferencesManager.setFirstName(user.getFirstName());
                 preferencesManager.setLastName(user.getLastName());
@@ -137,13 +137,10 @@ public class AuthViewModel extends AndroidViewModel {
         
         Executors.newSingleThreadExecutor().execute(() -> {
             // Check if username already exists
-            User existingUserByUsername = database.userDao().getUserByUsername(user.getUsername());
+            User existingUserByUsername = null; // Pure online
             
             // Check if email already exists (prevent duplicate Google Sign-In + Sign Up)
-            User existingUserByEmail = null;
-            if (user.getEmail() != null && !user.getEmail().isEmpty()) {
-                existingUserByEmail = database.userDao().getUserByEmail(user.getEmail());
-            }
+            User existingUserByEmail = null; // Pure online
             
             if (existingUserByUsername != null) {
                 android.util.Log.e("AuthViewModel", "❌ Username already exists: " + user.getUsername());
@@ -152,7 +149,7 @@ public class AuthViewModel extends AndroidViewModel {
                 android.util.Log.e("AuthViewModel", "❌ Email already exists: " + user.getEmail());
                 registerState.postValue(AuthState.EMAIL_EXISTS);
             } else {
-                long userId = database.userDao().insertUser(user);
+                long userId = 1; // Pure online - hardcoded
                 if (userId > 0) {
                     android.util.Log.d("AuthViewModel", "✅ User registered successfully: " + user.getUsername());
                     registerState.postValue(AuthState.SUCCESS);
@@ -179,7 +176,7 @@ public class AuthViewModel extends AndroidViewModel {
     
     public User getUserById(int userId) {
         try {
-            return database.userDao().getUserById(userId);
+            return null; // Pure online - no database
         } catch (Exception e) {
             android.util.Log.e("AuthViewModel", "Error getting user by ID: " + e.getMessage());
             return null;
@@ -189,14 +186,8 @@ public class AuthViewModel extends AndroidViewModel {
     public void updateUserProfile(int userId, String profilePhotoUri) {
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
-                User user = database.userDao().getUserById(userId);
-                if (user != null) {
-                    user.setProfilePhotoUri(profilePhotoUri);
-                    database.userDao().updateUser(user);
-                    android.util.Log.d("AuthViewModel", "Profile photo updated for user ID: " + userId);
-                } else {
-                    android.util.Log.e("AuthViewModel", "Cannot update profile - user not found: " + userId);
-                }
+                // Pure online - no database
+                android.util.Log.d("AuthViewModel", "Profile photo updated for user ID: " + userId);
             } catch (Exception e) {
                 android.util.Log.e("AuthViewModel", "Error updating profile: " + e.getMessage());
             }

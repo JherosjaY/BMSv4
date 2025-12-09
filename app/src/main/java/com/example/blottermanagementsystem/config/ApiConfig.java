@@ -5,10 +5,10 @@ package com.example.blottermanagementsystem.config;
  */
 public class ApiConfig {
     // Base URL for API calls
-    public static final String BASE_URL = "https://bmsv3-backend.onrender.com/api/";
+    public static final String BASE_URL = "https://bms-backend-exeb.onrender.com/";
     
     // Alternative local development URL
-    public static final String LOCAL_BASE_URL = "http://192.168.1.100:3000/api/";
+    public static final String LOCAL_BASE_URL = "http://192.168.1.100:3000/";
     
     // API Endpoints
     public static class Endpoints {

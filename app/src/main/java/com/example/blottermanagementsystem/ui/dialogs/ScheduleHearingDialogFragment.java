@@ -21,10 +21,10 @@ import android.widget.CalendarView;
 import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Hearing;
-import com.example.blottermanagementsystem.data.api.ApiClient;
+import com.example.blottermanagementsystem.utils.HearingReminderManager;
 import com.example.blottermanagementsystem.utils.NetworkMonitor;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
-import com.example.blottermanagementsystem.utils.HearingReminderManager;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import retrofit2.Call;
@@ -34,8 +34,10 @@ import retrofit2.Response;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 public class ScheduleHearingDialogFragment extends DialogFragment {
@@ -43,27 +45,31 @@ public class ScheduleHearingDialogFragment extends DialogFragment {
     private EditText etHearingDate, etHearingTime, etHearingLocation, etHearingPurpose, etPresidingOfficer, etHearingNotes;
     private MaterialButton btnSchedule;
     private int reportId;
-    private OnHearingSavedListener listener;
     private Calendar selectedDate;
-
-    public interface OnHearingSavedListener {
-        void onHearingSaved(Hearing hearing);
+    private NetworkMonitor networkMonitor;
+    private OnHearingScheduledListener onHearingScheduledListener;
+    
+    public interface OnHearingScheduledListener {
+        void onHearingScheduled();
+    }
+    
+    public void setOnHearingScheduledListener(OnHearingScheduledListener listener) {
+        this.onHearingScheduledListener = listener;
     }
 
-    public static ScheduleHearingDialogFragment newInstance(int reportId, OnHearingSavedListener listener) {
+    public static ScheduleHearingDialogFragment newInstance(int reportId) {
         ScheduleHearingDialogFragment fragment = new ScheduleHearingDialogFragment();
         Bundle args = new Bundle();
         args.putInt("report_id", reportId);
         fragment.setArguments(args);
-        fragment.listener = listener;
         return fragment;
     }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Use transparent background to show the MaterialCardView properly
         setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Material_Dialog_MinWidth);
+        networkMonitor = new NetworkMonitor(getContext());
         if (getArguments() != null) {
             reportId = getArguments().getInt("report_id");
         }
@@ -144,7 +150,8 @@ public class ScheduleHearingDialogFragment extends DialogFragment {
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
                 PreferencesManager prefs = new PreferencesManager(getContext());
-                int currentOfficerId = prefs.getUserId();
+                String userIdStr = prefs.getUserId();
+                int currentOfficerId = (userIdStr != null && !userIdStr.isEmpty()) ? Integer.parseInt(userIdStr) : 0;
                 
                 // Get current officer's name from preferences
                 String firstName = prefs.getFirstName();
@@ -283,7 +290,8 @@ public class ScheduleHearingDialogFragment extends DialogFragment {
                     
                     // ✅ FIXED: Add officer ID to assigned list when creating hearing
                     PreferencesManager prefs = new PreferencesManager(getContext());
-                    int currentOfficerId = prefs.getUserId();
+                    String userIdStr = prefs.getUserId();
+                    int currentOfficerId = (userIdStr != null && !userIdStr.isEmpty()) ? Integer.parseInt(userIdStr) : -1;
                     
                     // Get the report and update assigned officers
                     com.example.blottermanagementsystem.data.entity.BlotterReport report = 
@@ -352,8 +360,8 @@ public class ScheduleHearingDialogFragment extends DialogFragment {
                     }
                     
                     getActivity().runOnUiThread(() -> {
-                        if (listener != null) {
-                            listener.onHearingSaved(hearing);
+                        if (onHearingScheduledListener != null) {
+                            onHearingScheduledListener.onHearingScheduled();
                         }
                         Toast.makeText(getContext(), "Hearing scheduled successfully", Toast.LENGTH_SHORT).show();
                         dismiss();

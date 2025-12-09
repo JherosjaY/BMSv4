@@ -393,7 +393,7 @@ public class UserManagementActivity extends BaseActivity {
      * Pure Online: Delete user via API
      */
     private void deleteUserViaApi(User user) {
-        com.example.blottermanagementsystem.utils.ApiClient.deleteUser(user.getId(),
+        com.example.blottermanagementsystem.utils.ApiClient.deleteUser(String.valueOf(user.getId()),
             new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
                 @Override
                 public void onSuccess(Object response) {

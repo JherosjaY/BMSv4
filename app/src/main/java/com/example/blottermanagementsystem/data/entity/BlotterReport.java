@@ -205,6 +205,9 @@ public class BlotterReport {
 
     public int getReportedById() { return userId; }
     public void setReportedById(int reportedById) { this.userId = reportedById; }
+    
+    public Integer getFiledById() { return userId; }
+    public void setFiledById(Integer filedById) { this.userId = filedById; }
 
     public long getCreatedAt() { return dateFiled; }
     public void setCreatedAt(long createdAt) { this.dateFiled = createdAt; }

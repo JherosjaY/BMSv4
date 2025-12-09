@@ -40,4 +40,7 @@ public class Notification {
     public void setRead(boolean read) { isRead = read; }
     public long getTimestamp() { return timestamp; }
     public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
+    
+    // ✅ Alias for API compatibility
+    public Integer getRelatedReportId() { return caseId; }
 }

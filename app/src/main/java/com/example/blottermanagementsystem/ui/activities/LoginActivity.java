@@ -19,6 +19,7 @@ import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.entity.User;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
 import com.example.blottermanagementsystem.data.api.ApiService;
+import com.example.blottermanagementsystem.data.api.ApiClient;
 import com.example.blottermanagementsystem.viewmodel.AuthViewModel;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
@@ -45,6 +46,9 @@ public class LoginActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+        
+        // Initialize ApiClient with context
+        ApiClient.initApiClient(this);
         
         initViews();
         setupGoogleSignIn();
@@ -114,81 +118,86 @@ public class LoginActivity extends BaseActivity {
                 lastName = "Account";
             }
             
-            // Save Google account info
-            preferencesManager.saveGoogleAccountInfo(email, displayName, photoUrl);
+            // ✅ PURE ONLINE: Check internet first
+            com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+                new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
             
-            // ✅ SEPARATE WORKFLOW: Check if email already registered
-            java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-                com.example.blottermanagementsystem.data.database.BlotterDatabase database = 
-                    com.example.blottermanagementsystem.data.database.BlotterDatabase.getDatabase(this);
-                
-                // ✅ Check if email exists in database
-                com.example.blottermanagementsystem.data.entity.User existingUserByEmail = 
-                    database.userDao().getUserByEmail(email);
-                
-                // ✅ Use final variable for lambda
-                final com.example.blottermanagementsystem.data.entity.User finalUserByEmail = existingUserByEmail;
-                
-                runOnUiThread(() -> {
-                    if (finalUserByEmail != null) {
-                        // ✅ Email exists - Check how it was registered
-                        String authMethod = finalUserByEmail.getAuthMethod();
+            if (!networkMonitor.isNetworkAvailable()) {
+                android.util.Log.e("LoginActivity", "❌ No internet connection for Google Sign-In");
+                Toast.makeText(this, "No internet connection. Please check your connection and try again.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            // ✅ PURE ONLINE: Call API endpoint for Google Sign-In
+            android.util.Log.d("LoginActivity", "🌐 Google Sign-In via API for email: " + email);
+            com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "🔐 Signing in with Google...");
+            
+            com.example.blottermanagementsystem.utils.ApiClient.googleSignIn(email, displayName, photoUrl,
+                new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                    @Override
+                    public void onSuccess(Object response) {
+                        android.util.Log.d("LoginActivity", "✅ Google Sign-In successful via API");
                         
-                        if ("GOOGLE".equals(authMethod)) {
-                            // ✅ Google account exists - LOGIN
-                            android.util.Log.d("LoginActivity", "Google user exists, logging in: " + email);
+                        try {
+                            // Extract user from response
+                            Object dataObj = response.getClass().getField("data").get(response);
+                            com.example.blottermanagementsystem.data.entity.User apiUser = 
+                                (com.example.blottermanagementsystem.data.entity.User) dataObj.getClass().getField("user").get(dataObj);
                             
-                            // SECURITY: Google Sign-In users are ALWAYS "User" role
-                            preferencesManager.setUserId(finalUserByEmail.getId());
+                            // Store user data in preferences (from API/Neon)
+                            String userId = String.valueOf(apiUser.getId());
+                            String userRole = apiUser.getRole();
+                            
+                            preferencesManager.setUserId(userId);
+                            preferencesManager.setUserRole(userRole);
+                            preferencesManager.setUsername(apiUser.getUsername());
+                            preferencesManager.setFirstName(apiUser.getFirstName());
+                            preferencesManager.setLastName(apiUser.getLastName());
                             preferencesManager.setLoggedIn(true);
-                            preferencesManager.setUserRole("User");
-                            preferencesManager.setFirstName(finalUserByEmail.getFirstName());
-                            preferencesManager.setLastName(finalUserByEmail.getLastName());
                             
-                            // Navigate to Dashboard
-                            Intent intent = new Intent(LoginActivity.this, com.example.blottermanagementsystem.ui.activities.UserDashboardActivity.class);
-                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                            startActivity(intent);
-                            finish();
+                            android.util.Log.d("LoginActivity", "✅ User stored: " + userId + " Role: " + userRole);
                             
-                        } else {
-                            // ✅ Email registered via Sign Up - REJECT Google Sign-In
-                            android.util.Log.w("LoginActivity", "Email already registered via Sign Up: " + email);
-                            Toast.makeText(LoginActivity.this, "This email is already registered. Please use Sign in with username and password.", Toast.LENGTH_LONG).show();
+                            runOnUiThread(() -> {
+                                com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                                
+                                // Navigate to Profile Picture Selection for first-time users
+                                if (!apiUser.isProfileCompleted()) {
+                                    Intent intent = new Intent(LoginActivity.this, ProfilePictureSelectionActivity.class);
+                                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                    startActivity(intent);
+                                } else {
+                                    // Navigate to Dashboard
+                                    Intent intent = new Intent(LoginActivity.this, UserDashboardActivity.class);
+                                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                    startActivity(intent);
+                                }
+                                finish();
+                            });
+                            
+                        } catch (Exception e) {
+                            android.util.Log.e("LoginActivity", "❌ Error processing Google Sign-In response: " + e.getMessage(), e);
+                            runOnUiThread(() -> {
+                                com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                                Toast.makeText(LoginActivity.this, "Error processing Google Sign-In", Toast.LENGTH_SHORT).show();
+                            });
                         }
-                        return;
                     }
                     
-                    // ✅ Email not registered - Create new Google account
-                    android.util.Log.d("LoginActivity", "Email not registered, creating new Google account: " + email);
-                    
-                    // Create new user in database with clean username
-                    com.example.blottermanagementsystem.data.entity.User newUser = 
-                        new com.example.blottermanagementsystem.data.entity.User(firstName, lastName, username, "", "User");
-                    newUser.setEmail(email);
-                    newUser.setProfilePhotoUri(photoUrl);
-                    newUser.setAuthMethod("GOOGLE"); // ✅ Mark as Google account
-                    
-                    java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-                        long userId = database.userDao().insertUser(newUser);
+                    @Override
+                    public void onError(String errorMessage) {
+                        android.util.Log.e("LoginActivity", "❌ Google Sign-In failed: " + errorMessage);
                         
                         runOnUiThread(() -> {
-                            // Save user data to preferences
-                            preferencesManager.setUserId((int) userId);
-                            preferencesManager.setLoggedIn(true);
-                            preferencesManager.setUserRole("User");
-                            preferencesManager.setFirstName(firstName);
-                            preferencesManager.setLastName(lastName);
+                            com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
                             
-                            // Navigate to Profile Picture Selection
-                            Intent intent = new Intent(LoginActivity.this, com.example.blottermanagementsystem.ui.activities.ProfilePictureSelectionActivity.class);
-                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                            startActivity(intent);
-                            finish();
+                            if (errorMessage.contains("already registered")) {
+                                Toast.makeText(LoginActivity.this, "This email is already registered. Please use Sign in with username and password.", Toast.LENGTH_LONG).show();
+                            } else {
+                                Toast.makeText(LoginActivity.this, "Google Sign-In failed: " + errorMessage, Toast.LENGTH_SHORT).show();
+                            }
                         });
-                    });
+                    }
                 });
-            });
             
         } catch (ApiException e) {
             Toast.makeText(this, "Google Sign-In failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -325,7 +334,7 @@ public class LoginActivity extends BaseActivity {
                             (com.example.blottermanagementsystem.data.entity.User) dataObj.getClass().getField("user").get(dataObj);
                         
                         // Store user data in preferences (from API/Neon)
-                        String userId = apiUser.getId();
+                        String userId = String.valueOf(apiUser.getId());
                         String userRole = apiUser.getRole();
                         
                         preferencesManager.setUserId(userId);
@@ -435,15 +444,14 @@ public class LoginActivity extends BaseActivity {
     }
     
     private void checkUserProfileCompletion() {
-        int userId = preferencesManager.getUserId();
+        String userId = preferencesManager.getUserId();
         
         android.util.Log.d("LoginActivity", "=== CHECK PROFILE COMPLETION ===");
         android.util.Log.d("LoginActivity", "UserId from PreferencesManager: " + userId);
         
         java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-            com.example.blottermanagementsystem.data.database.BlotterDatabase database = 
-                com.example.blottermanagementsystem.data.database.BlotterDatabase.getDatabase(this);
-            com.example.blottermanagementsystem.data.entity.User user = database.userDao().getUserById(userId);
+            // Pure online - no database calls
+            com.example.blottermanagementsystem.data.entity.User user = null;
             
             runOnUiThread(() -> {
                 Intent intent;

@@ -538,8 +538,9 @@ public class OfficerMyCasesActivity extends BaseActivity {
                 // Just quietly update data in background
                 Executors.newSingleThreadExecutor().execute(() -> {
                     try {
-                        int userId = preferencesManager.getUserId();
-                        com.example.blottermanagementsystem.data.entity.Officer officer = database.officerDao().getOfficerByUserId(userId);
+                        String userId = preferencesManager.getUserId();
+                        int userIdInt = Integer.parseInt(userId);
+                        com.example.blottermanagementsystem.data.entity.Officer officer = database.officerDao().getOfficerByUserId(userIdInt);
                         int officerId = (officer != null) ? officer.getId() : -1;
                         
                         List<BlotterReport> reports = database.blotterReportDao().getAllReports();

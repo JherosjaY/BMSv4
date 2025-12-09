@@ -15,17 +15,18 @@ import androidx.fragment.app.DialogFragment;
 
 import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.data.database.BlotterDatabase;
+import com.example.blottermanagementsystem.data.entity.PersonHistory;
 import com.example.blottermanagementsystem.data.entity.Resolution;
 import com.example.blottermanagementsystem.data.entity.Suspect;
-import com.example.blottermanagementsystem.data.entity.PersonHistory;
-import com.example.blottermanagementsystem.data.api.ApiClient;
 import com.example.blottermanagementsystem.utils.NetworkMonitor;
-import java.util.List;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import com.google.android.material.button.MaterialButton;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 public class DocumentResolutionDialogFragment extends DialogFragment {
@@ -34,26 +35,30 @@ public class DocumentResolutionDialogFragment extends DialogFragment {
     private EditText etResolutionDetails;
     private MaterialButton btnSave;
     private int reportId;
-    private OnResolutionSavedListener listener;
-
-    public interface OnResolutionSavedListener {
-        void onResolutionSaved(Resolution resolution);
+    private NetworkMonitor networkMonitor;
+    private OnResolutionDocumentedListener onResolutionDocumentedListener;
+    
+    public interface OnResolutionDocumentedListener {
+        void onResolutionDocumented();
+    }
+    
+    public void setOnResolutionDocumentedListener(OnResolutionDocumentedListener listener) {
+        this.onResolutionDocumentedListener = listener;
     }
 
-    public static DocumentResolutionDialogFragment newInstance(int reportId, OnResolutionSavedListener listener) {
+    public static DocumentResolutionDialogFragment newInstance(int reportId) {
         DocumentResolutionDialogFragment fragment = new DocumentResolutionDialogFragment();
         Bundle args = new Bundle();
         args.putInt("report_id", reportId);
         fragment.setArguments(args);
-        fragment.listener = listener;
         return fragment;
     }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Use transparent background to show the MaterialCardView properly
         setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Material_Dialog_MinWidth);
+        networkMonitor = new NetworkMonitor(getContext());
         if (getArguments() != null) {
             reportId = getArguments().getInt("report_id");
         }
@@ -242,8 +247,8 @@ public class DocumentResolutionDialogFragment extends DialogFragment {
                     }
                     
                     getActivity().runOnUiThread(() -> {
-                        if (listener != null) {
-                            listener.onResolutionSaved(resolution);
+                        if (onResolutionDocumentedListener != null) {
+                            onResolutionDocumentedListener.onResolutionDocumented();
                         }
                         // ✅ Toast removed - timeline refresh provides visual feedback
                         dismiss();

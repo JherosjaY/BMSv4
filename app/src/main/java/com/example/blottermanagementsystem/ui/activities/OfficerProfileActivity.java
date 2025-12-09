@@ -15,23 +15,22 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.widget.Toolbar;
 import androidx.cardview.widget.CardView;
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
-import com.example.blottermanagementsystem.data.entity.User;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.textfield.TextInputEditText;
-import java.util.List;
-import java.util.concurrent.Executors;
+import java.util.Map;
 
 public class OfficerProfileActivity extends BaseActivity {
     
     private PreferencesManager preferencesManager;
-    private BlotterDatabase database;
-    private User currentUser;
+    private NetworkMonitor networkMonitor;
+    private Map<String, Object> currentUser;
     
     // Views
     private Toolbar toolbar;
@@ -54,7 +53,7 @@ public class OfficerProfileActivity extends BaseActivity {
         setContentView(R.layout.activity_profile);
         
         preferencesManager = new PreferencesManager(this);
-        database = BlotterDatabase.getDatabase(this);
+        networkMonitor = new NetworkMonitor(this);
         
         setupImagePicker();
         initViews();
@@ -85,29 +84,8 @@ public class OfficerProfileActivity extends BaseActivity {
                     
                     preferencesManager.setProfileImageUri(selectedImageUri);
                     
-                    // Also update database so dashboard can see the change
-                    if (currentUser != null) {
-                        currentUser.setProfilePhotoUri(selectedImageUri);
-                        Executors.newSingleThreadExecutor().execute(() -> {
-                            database.userDao().updateUser(currentUser);
-                            android.util.Log.d("OfficerProfileActivity", "✅ Profile photo saved to database: " + selectedImageUri);
-                        });
-                    } else {
-                        android.util.Log.e("OfficerProfileActivity", "❌ ERROR: Cannot save profile photo - currentUser is NULL!");
-                        // Try to load user and save
-                        int userId = preferencesManager.getUserId();
-                        Executors.newSingleThreadExecutor().execute(() -> {
-                            User user = database.userDao().getUserById(userId);
-                            if (user != null) {
-                                user.setProfilePhotoUri(selectedImageUri);
-                                database.userDao().updateUser(user);
-                                currentUser = user;
-                                android.util.Log.d("OfficerProfileActivity", "✅ Profile photo saved after loading user");
-                            } else {
-                                android.util.Log.e("OfficerProfileActivity", "❌ Still cannot find user with ID: " + userId);
-                            }
-                        });
-                    }
+                    // Profile picture updated via preferences (pure online)
+                    android.util.Log.d("OfficerProfileActivity", "✅ Profile photo saved to preferences");
                     
                     loadProfilePicture();
                     Toast.makeText(this, "Profile picture updated!", Toast.LENGTH_SHORT).show();
@@ -118,7 +96,7 @@ public class OfficerProfileActivity extends BaseActivity {
     
     private void initViews() {
         toolbar = findViewById(R.id.toolbar);
-        ivProfilePicture = findViewById(R.id.ivProfilePicture);
+        // ivProfilePicture = findViewById(R.id.ivProfilePicture); // Not in layout
         tvProfileEmoji = findViewById(R.id.tvProfileEmoji);
         cardProfilePic = findViewById(R.id.cardProfilePic);
         tvName = findViewById(R.id.tvName);
@@ -146,46 +124,53 @@ public class OfficerProfileActivity extends BaseActivity {
     }
     
     private void loadUserData() {
-        int userId = preferencesManager.getUserId();
+        String userId = preferencesManager.getUserId();
         android.util.Log.d("OfficerProfileActivity", "=== LOADING USER DATA ===");
         android.util.Log.d("OfficerProfileActivity", "UserID from PreferencesManager: " + userId);
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            // Check total users in database
-            List<User> allUsers = database.userDao().getAllUsers();
-            android.util.Log.d("OfficerProfileActivity", "Total users in database: " + allUsers.size());
-            for (User u : allUsers) {
-                android.util.Log.d("OfficerProfileActivity", "  User: ID=" + u.getId() + ", Username=" + u.getUsername() + ", FirstName=" + u.getFirstName());
-            }
-            
-            currentUser = database.userDao().getUserById(userId);
-            
-            android.util.Log.d("OfficerProfileActivity", "User loaded: " + (currentUser != null ? "YES" : "NULL"));
-            if (currentUser != null) {
-                android.util.Log.d("OfficerProfileActivity", "FirstName: " + currentUser.getFirstName());
-                android.util.Log.d("OfficerProfileActivity", "LastName: " + currentUser.getLastName());
-                android.util.Log.d("OfficerProfileActivity", "Username: " + currentUser.getUsername());
-            } else {
-                android.util.Log.e("OfficerProfileActivity", "ERROR: User with ID " + userId + " NOT FOUND!");
-            }
-            
-            runOnUiThread(() -> {
-                if (currentUser != null) {
-                    displayUserInfo();
-                    loadProfilePicture();
-                } else {
-                    Toast.makeText(this, "ERROR: User not found in database!", Toast.LENGTH_LONG).show();
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Load from API (pure online)
+        ApiClient.getProfile(userId, new ApiClient.ApiCallback<Object>() {
+            @Override
+            public void onSuccess(Object result) {
+                if (isFinishing() || isDestroyed()) return;
+                
+                try {
+                    if (result instanceof Map) {
+                        currentUser = (Map<String, Object>) result;
+                        android.util.Log.d("OfficerProfileActivity", "✅ User loaded from API");
+                        runOnUiThread(() -> {
+                            displayUserInfo();
+                            loadProfilePicture();
+                        });
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("OfficerProfileActivity", "Error parsing user data: " + e.getMessage());
                 }
-            });
+            }
+            
+            @Override
+            public void onError(String errorMessage) {
+                if (isFinishing() || isDestroyed()) return;
+                
+                android.util.Log.e("OfficerProfileActivity", "ERROR: Failed to load user: " + errorMessage);
+                runOnUiThread(() -> {
+                    Toast.makeText(OfficerProfileActivity.this, "Failed to load user data", Toast.LENGTH_LONG).show();
+                });
+            }
         });
     }
     
     private void displayUserInfo() {
-        // Get data from database
-        String firstName = currentUser.getFirstName() != null ? currentUser.getFirstName() : "";
-        String lastName = currentUser.getLastName() != null ? currentUser.getLastName() : "";
-        String username = currentUser.getUsername() != null ? currentUser.getUsername() : "";
-        String email = currentUser.getEmail() != null ? currentUser.getEmail() : "Not provided";
+        // Get data from API response
+        String firstName = currentUser.get("firstName") != null ? currentUser.get("firstName").toString() : "";
+        String lastName = currentUser.get("lastName") != null ? currentUser.get("lastName").toString() : "";
+        String username = currentUser.get("username") != null ? currentUser.get("username").toString() : "";
+        String email = currentUser.get("email") != null ? currentUser.get("email").toString() : "Not provided";
         
         // Display name
         String fullName = (firstName + " " + lastName).trim();
@@ -219,7 +204,7 @@ public class OfficerProfileActivity extends BaseActivity {
             tvProfileEmoji.setText("👮‍♂️");
         }
         tvProfileEmoji.setVisibility(View.VISIBLE);
-        ivProfilePicture.setVisibility(View.GONE);
+        // ivProfilePicture.setVisibility(View.GONE); // Not in layout
         btnChangePhoto.setVisibility(View.GONE);
     }
     
@@ -376,8 +361,8 @@ public class OfficerProfileActivity extends BaseActivity {
         com.google.android.material.button.MaterialButton btnSaveEdit = dialogView.findViewById(R.id.btnSaveEdit);
         
         // Pre-fill with current data
-        etFirstName.setText(currentUser.getFirstName());
-        etLastName.setText(currentUser.getLastName());
+        etFirstName.setText(currentUser.get("firstName") != null ? currentUser.get("firstName").toString() : "");
+        etLastName.setText(currentUser.get("lastName") != null ? currentUser.get("lastName").toString() : "");
         
         // Create dialog
         androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(this)
@@ -408,7 +393,7 @@ public class OfficerProfileActivity extends BaseActivity {
             
             // Update profile via API
             String userId = preferencesManager.getUserId();
-            com.example.blottermanagementsystem.utils.ApiClient.updateProfile(userId, firstName, lastName, null,
+            com.example.blottermanagementsystem.utils.ApiClient.updateProfile(userId, firstName, lastName,
                 new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
                     @Override
                     public void onSuccess(Object response) {

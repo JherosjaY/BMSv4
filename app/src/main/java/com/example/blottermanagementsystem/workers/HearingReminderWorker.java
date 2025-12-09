@@ -5,7 +5,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
+// import com.example.blottermanagementsystem.data.database.BlotterDatabase; // Pure online
 import com.example.blottermanagementsystem.data.entity.Hearing;
 import com.example.blottermanagementsystem.utils.ReminderNotificationHelper;
 
@@ -33,8 +33,8 @@ public class HearingReminderWorker extends Worker {
             }
             
             // Get hearing from database
-            BlotterDatabase database = BlotterDatabase.getDatabase(getApplicationContext());
-            Hearing hearing = database.hearingDao().getHearingById(hearingId);
+            // BlotterDatabase database = BlotterDatabase.getDatabase(getApplicationContext()); // Pure online
+            Hearing hearing = null; // Pure online
             
             if (hearing == null) {
                 Log.e(TAG, "Hearing not found: " + hearingId);

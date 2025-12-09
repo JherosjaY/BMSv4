@@ -148,6 +148,9 @@ public class PreferencesManager {
     }
     
     public void setHasSelectedPfp(boolean value) {
+        prefs.edit().putBoolean(KEY_HAS_SELECTED_PFP, value).apply();
+    }
+    
     // ==================== Dark Mode (Per-User) ====================
     
     public boolean isDarkMode() {
@@ -398,7 +401,7 @@ public class PreferencesManager {
     // ==================== Clear Session ====================
     
     public void clearSession() {
-        int currentUserId = getUserId();
+        String currentUserId = getUserId();
         SharedPreferences.Editor editor = prefs.edit();
         editor.remove(KEY_IS_LOGGED_IN);
         editor.remove(KEY_USER_ID);
@@ -558,5 +561,19 @@ public class PreferencesManager {
             .remove(KEY_TEMP_PASSWORD)
             .apply();
         android.util.Log.d("PreferencesManager", "✅ Cleared temp user data");
+    }
+    
+    public void clearUserData() {
+        prefs.edit()
+            .remove(KEY_IS_LOGGED_IN)
+            .remove(KEY_USER_ID)
+            .remove(KEY_USERNAME)
+            .remove(KEY_USER_ROLE)
+            .remove(KEY_FIRST_NAME)
+            .remove(KEY_LAST_NAME)
+            .remove(KEY_PROFILE_PHOTO)
+            .remove(KEY_FCM_TOKEN)
+            .apply();
+        android.util.Log.d("PreferencesManager", "✅ Cleared all user data");
     }
 }

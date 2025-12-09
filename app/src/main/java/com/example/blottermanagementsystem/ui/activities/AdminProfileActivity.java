@@ -10,18 +10,18 @@ import android.widget.Toast;
 import androidx.appcompat.widget.Toolbar;
 import androidx.cardview.widget.CardView;
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
-import com.example.blottermanagementsystem.data.entity.User;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
-import java.util.concurrent.Executors;
+import java.util.Map;
 
 public class AdminProfileActivity extends BaseActivity {
     
     private PreferencesManager preferencesManager;
-    private BlotterDatabase database;
-    private User currentUser;
+    private NetworkMonitor networkMonitor;
+    private Map<String, Object> currentUser;
     
     // Views
     private Toolbar toolbar;
@@ -35,7 +35,7 @@ public class AdminProfileActivity extends BaseActivity {
         setContentView(R.layout.activity_admin_profile);
         
         preferencesManager = new PreferencesManager(this);
-        database = BlotterDatabase.getDatabase(this);
+        networkMonitor = new NetworkMonitor(this);
         
         initViews();
         setupToolbar();
@@ -77,20 +77,50 @@ public class AdminProfileActivity extends BaseActivity {
     }
     
     private void loadUserData() {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            currentUser = database.userDao().getUserById(preferencesManager.getUserId());
-            
-            runOnUiThread(() -> {
-                if (currentUser != null) {
-                    String fullName = currentUser.getFirstName() + " " + currentUser.getLastName();
-                    tvAdminName.setText(fullName);
-                    tvUsername.setText("@" + currentUser.getUsername());
-                    tvFirstName.setText(currentUser.getFirstName());
-                    tvLastName.setText(currentUser.getLastName());
-                    tvUsernameValue.setText(currentUser.getUsername());
-                    tvRole.setText(currentUser.getRole());
+        String userId = preferencesManager.getUserId();
+        
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Load from API (pure online)
+        ApiClient.getProfile(userId, new ApiClient.ApiCallback<Object>() {
+            @Override
+            public void onSuccess(Object result) {
+                if (isFinishing() || isDestroyed()) return;
+                
+                try {
+                    if (result instanceof Map) {
+                        currentUser = (Map<String, Object>) result;
+                        runOnUiThread(() -> {
+                            String firstName = currentUser.get("firstName") != null ? currentUser.get("firstName").toString() : "";
+                            String lastName = currentUser.get("lastName") != null ? currentUser.get("lastName").toString() : "";
+                            String username = currentUser.get("username") != null ? currentUser.get("username").toString() : "";
+                            String role = currentUser.get("role") != null ? currentUser.get("role").toString() : "Admin";
+                            
+                            String fullName = (firstName + " " + lastName).trim();
+                            tvAdminName.setText(fullName.isEmpty() ? "Admin Account" : fullName);
+                            tvUsername.setText("@" + username);
+                            tvFirstName.setText(firstName);
+                            tvLastName.setText(lastName);
+                            tvUsernameValue.setText(username);
+                            tvRole.setText(role);
+                        });
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("AdminProfileActivity", "Error parsing user data: " + e.getMessage());
                 }
-            });
+            }
+            
+            @Override
+            public void onError(String errorMessage) {
+                if (isFinishing() || isDestroyed()) return;
+                
+                runOnUiThread(() -> {
+                    Toast.makeText(AdminProfileActivity.this, "Failed to load profile", Toast.LENGTH_SHORT).show();
+                });
+            }
         });
     }
     
@@ -108,9 +138,9 @@ public class AdminProfileActivity extends BaseActivity {
         TextInputEditText etLastName = dialogView.findViewById(R.id.etLastName);
         TextInputEditText etUsername = dialogView.findViewById(R.id.etUsername);
         
-        etFirstName.setText(currentUser.getFirstName());
-        etLastName.setText(currentUser.getLastName());
-        etUsername.setText(currentUser.getUsername());
+        etFirstName.setText(currentUser.get("firstName") != null ? currentUser.get("firstName").toString() : "");
+        etLastName.setText(currentUser.get("lastName") != null ? currentUser.get("lastName").toString() : "");
+        etUsername.setText(currentUser.get("username") != null ? currentUser.get("username").toString() : "");
         
         dialog.setOnShowListener(dialogInterface -> {
             MaterialButton positiveButton = (MaterialButton) dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE);
@@ -133,19 +163,33 @@ public class AdminProfileActivity extends BaseActivity {
     }
     
     private void updateProfile(String firstName, String lastName, String username) {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            currentUser.setFirstName(firstName);
-            currentUser.setLastName(lastName);
-            currentUser.setUsername(username);
-            database.userDao().updateUser(currentUser);
-            
-            preferencesManager.setFirstName(firstName);
-            preferencesManager.setLastName(lastName);
-            
-            runOnUiThread(() -> {
-                loadUserData();
+        String userId = preferencesManager.getUserId();
+        
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Update profile via API
+        ApiClient.updateProfile(userId, firstName, lastName,
+            new ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object response) {
+                    preferencesManager.setFirstName(firstName);
+                    preferencesManager.setLastName(lastName);
+                    runOnUiThread(() -> {
+                        Toast.makeText(AdminProfileActivity.this, "Profile updated", Toast.LENGTH_SHORT).show();
+                        loadUserData();
+                    });
+                }
+                
+                @Override
+                public void onError(String errorMessage) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(AdminProfileActivity.this, "Failed to update profile", Toast.LENGTH_SHORT).show();
+                    });
+                }
             });
-        });
     }
     
     private void showChangePasswordDialog() {
@@ -176,8 +220,10 @@ public class AdminProfileActivity extends BaseActivity {
                 return;
             }
             
-            if (!currentPassword.equals(currentUser.getPassword())) {
-                Toast.makeText(this, "Current password is incorrect", Toast.LENGTH_SHORT).show();
+            // Note: Password verification should be done on backend
+            // For now, we'll skip local verification and let the API handle it
+            if (currentPassword.isEmpty()) {
+                Toast.makeText(this, "Current password is required", Toast.LENGTH_SHORT).show();
                 return;
             }
             
@@ -191,7 +237,7 @@ public class AdminProfileActivity extends BaseActivity {
                 return;
             }
             
-            changePassword(newPassword);
+            changePassword(currentPassword, newPassword);
             dialog.dismiss();
         });
         
@@ -200,14 +246,31 @@ public class AdminProfileActivity extends BaseActivity {
         dialog.show();
     }
     
-    private void changePassword(String newPassword) {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            currentUser.setPassword(newPassword);
-            database.userDao().updateUser(currentUser);
-            
-            runOnUiThread(() -> {
+    private void changePassword(String currentPassword, String newPassword) {
+        String userId = preferencesManager.getUserId();
+        
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Change password via API
+        ApiClient.changePassword(userId, currentPassword, newPassword,
+            new ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object response) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(AdminProfileActivity.this, "Password changed successfully", Toast.LENGTH_SHORT).show();
+                    });
+                }
+                
+                @Override
+                public void onError(String errorMessage) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(AdminProfileActivity.this, "Failed to change password", Toast.LENGTH_SHORT).show();
+                    });
+                }
             });
-        });
     }
     
     private void showLogoutDialog() {
@@ -265,16 +328,30 @@ public class AdminProfileActivity extends BaseActivity {
     }
     
     private void performDeleteAccount() {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            database.userDao().deleteUser(currentUser);
-            
-            runOnUiThread(() -> {
+        String userId = preferencesManager.getUserId();
+        
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Delete account via API
+        ApiClient.deleteUser(userId, new ApiClient.ApiCallback<Object>() {
+            @Override
+            public void onSuccess(Object response) {
                 preferencesManager.logout();
-                Intent intent = new Intent(this, LoginActivity.class);
+                Intent intent = new Intent(AdminProfileActivity.this, LoginActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 startActivity(intent);
                 finish();
-            });
+            }
+            
+            @Override
+            public void onError(String errorMessage) {
+                runOnUiThread(() -> {
+                    Toast.makeText(AdminProfileActivity.this, "Failed to delete account", Toast.LENGTH_SHORT).show();
+                });
+            }
         });
     }
 }

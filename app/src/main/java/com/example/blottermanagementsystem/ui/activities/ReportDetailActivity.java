@@ -59,6 +59,7 @@ public class ReportDetailActivity extends BaseActivity {
     private int reportId;
     private PreferencesManager preferencesManager;
     private NotificationHelper notificationHelper;
+    private NetworkMonitor networkMonitor;
     
     private Toolbar toolbar;
     private TextView tvReportNumber, tvStatus, tvIncidentType, tvIncidentDate;
@@ -110,8 +111,10 @@ public class ReportDetailActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_user_report_detail);
         
+        database = BlotterDatabase.getDatabase(this);
+        
         try {
-            database = BlotterDatabase.getDatabase(this);
+            networkMonitor = new NetworkMonitor(this);
             preferencesManager = new PreferencesManager(this);
             notificationHelper = new NotificationHelper(this);
             reportId = getIntent().getIntExtra("REPORT_ID", -1);
@@ -611,9 +614,9 @@ public class ReportDetailActivity extends BaseActivity {
                     java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
                     final int finalDeleteId = deleteId;
                     
-                    ApiClient.deleteReport(finalDeleteId, new ApiClient.ApiCallback<String>() {
+                    ApiClient.deleteReport(finalDeleteId, new ApiClient.ApiCallback<Object>() {
                         @Override
-                        public void onSuccess(String result) {
+                        public void onSuccess(Object result) {
                             Log.d("ReportDetail", "✅ Report deleted from API: " + report.getCaseNumber() + " (API ID: " + finalDeleteId + ")");
                             latch.countDown();
                         }
@@ -659,80 +662,40 @@ public class ReportDetailActivity extends BaseActivity {
     }
     
     private void loadReportDetails() {
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
         com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Loading report...");
 
-        // Load from local database FIRST (fast) - don't wait for API
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                report = database.blotterReportDao().getReportById(reportId);
+        // Load from API (pure online)
+        ApiClient.getReportById(reportId, new ApiClient.ApiCallback<BlotterReport>() {
+            @Override
+            public void onSuccess(BlotterReport apiReport) {
+                if (isFinishing() || isDestroyed()) return;
                 
+                report = apiReport;
                 runOnUiThread(() -> {
                     com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
                     if (report != null) {
                         displayReportDetails();
                     } else {
-                        Toast.makeText(this, "Report not found", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(ReportDetailActivity.this, "Report not found", Toast.LENGTH_SHORT).show();
                         finish();
                     }
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    Toast.makeText(this, "Error loading report: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
             }
-        });
-        
-        // Sync with API in background (don't block UI)
-        NetworkMonitor networkMonitor = new NetworkMonitor(this);
-        if (networkMonitor.isNetworkAvailable()) {
-            Executors.newSingleThreadExecutor().execute(() -> {
-                ApiClient.getReportById(reportId, new ApiClient.ApiCallback<BlotterReport>() {
-                    @Override
-                    public void onSuccess(BlotterReport apiReport) {
-                        // Update local database silently
-                        Executors.newSingleThreadExecutor().execute(() -> {
-                            try {
-                                database.blotterReportDao().updateReport(apiReport);
-                                // Refresh UI with updated data (WITHOUT reinitializing timeline to avoid duplication)
-                                runOnUiThread(() -> {
-                                    report = apiReport;
-                                    updateReportDetailsOnly();
-                                });
-                            } catch (Exception e) {
-                                android.util.Log.e("ReportDetail", "Error syncing report: " + e.getMessage());
-                            }
-                        });
-                    }
-                    
-                    @Override
-                    public void onError(String errorMessage) {
-                        android.util.Log.w("ReportDetail", "API sync error: " + errorMessage);
-                        // Continue with local data - no need to show error
-                    }
-                });
-            });
-        }
-    }
-    
-    private void loadFromDatabase() {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                report = database.blotterReportDao().getReportById(reportId);
+            
+            @Override
+            public void onError(String errorMessage) {
+                if (isFinishing() || isDestroyed()) return;
                 
                 runOnUiThread(() -> {
                     com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    if (report != null) {
-                        displayReportDetails();
-                    } else {
-                        Toast.makeText(this, "Report not found", Toast.LENGTH_SHORT).show();
-                        finish();
-                    }
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    Toast.makeText(this, "Error loading report: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ReportDetailActivity.this, "Error: " + errorMessage, Toast.LENGTH_SHORT).show();
+                    finish();
                 });
             }
         });
@@ -743,55 +706,36 @@ public class ReportDetailActivity extends BaseActivity {
      * Used when refreshing after edit to avoid blocking UI
      */
     private void loadReportDetailsQuietly() {
-        // Load from local database FIRST (fast) - don't wait for API
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                report = database.blotterReportDao().getReportById(reportId);
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Load from API (pure online)
+        ApiClient.getReportById(reportId, new ApiClient.ApiCallback<BlotterReport>() {
+            @Override
+            public void onSuccess(BlotterReport apiReport) {
+                if (isFinishing() || isDestroyed()) return;
                 
+                report = apiReport;
                 runOnUiThread(() -> {
                     if (report != null) {
                         displayReportDetails();
                     } else {
-                        Toast.makeText(this, "Report not found", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(ReportDetailActivity.this, "Report not found", Toast.LENGTH_SHORT).show();
                     }
                 });
-            } catch (Exception e) {
+            }
+            
+            @Override
+            public void onError(String errorMessage) {
+                if (isFinishing() || isDestroyed()) return;
+                
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "Error loading report: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ReportDetailActivity.this, "Error: " + errorMessage, Toast.LENGTH_SHORT).show();
                 });
             }
         });
-        
-        // Sync with API in background (don't block UI)
-        NetworkMonitor networkMonitor = new NetworkMonitor(this);
-        if (networkMonitor.isNetworkAvailable()) {
-            Executors.newSingleThreadExecutor().execute(() -> {
-                ApiClient.getReportById(reportId, new ApiClient.ApiCallback<BlotterReport>() {
-                    @Override
-                    public void onSuccess(BlotterReport apiReport) {
-                        // Update local database silently
-                        Executors.newSingleThreadExecutor().execute(() -> {
-                            try {
-                                database.blotterReportDao().updateReport(apiReport);
-                                // Refresh UI with updated data
-                                runOnUiThread(() -> {
-                                    report = apiReport;
-                                    updateReportDetailsOnly();
-                                });
-                            } catch (Exception e) {
-                                android.util.Log.e("ReportDetail", "Error syncing report: " + e.getMessage());
-                            }
-                        });
-                    }
-                    
-                    @Override
-                    public void onError(String errorMessage) {
-                        android.util.Log.w("ReportDetail", "API sync error: " + errorMessage);
-                        // Continue with local data - no need to show error
-                    }
-                });
-            });
-        }
     }
     
     private void displayReportDetails() {

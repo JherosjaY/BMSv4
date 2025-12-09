@@ -19,17 +19,19 @@ import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Suspect;
 import com.example.blottermanagementsystem.data.entity.PersonHistory;
 import com.example.blottermanagementsystem.ui.adapters.SuspectListAdapter;
-import androidx.appcompat.app.AlertDialog;
-import com.example.blottermanagementsystem.data.api.ApiClient;
 import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import com.google.android.material.button.MaterialButton;
-import retrofit2.Call;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import androidx.appcompat.app.AlertDialog;
 import retrofit2.Callback;
+import retrofit2.Call;
 import retrofit2.Response;
-
 import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.concurrent.Executors;
+import java.util.List;
+import java.util.Map;
 
 public class AddSuspectDialogFragment extends DialogFragment {
 
@@ -38,32 +40,34 @@ public class AddSuspectDialogFragment extends DialogFragment {
     private RecyclerView recyclerSuspects;
     private LinearLayout suspectListSection;
     private SuspectListAdapter suspectAdapter;
-    private List<Suspect> suspectsList;
-    private int reportId;
-    private String respondentName;
-    private String respondentAddress;
-    private String respondentAlias;
     private android.widget.TextView tvRespondentName, tvRespondentAlias, tvRespondentAddress;
-    private OnSuspectSavedListener listener;
-
-    public interface OnSuspectSavedListener {
-        void onSuspectSaved(Suspect suspect);
+    private List<com.example.blottermanagementsystem.data.entity.Suspect> suspectsList;
+    private int reportId;
+    private NetworkMonitor networkMonitor;
+    private OnSuspectAddedListener onSuspectAddedListener;
+    private String respondentName, respondentAlias, respondentAddress;
+    
+    public interface OnSuspectAddedListener {
+        void onSuspectAdded();
+    }
+    
+    public void setOnSuspectAddedListener(OnSuspectAddedListener listener) {
+        this.onSuspectAddedListener = listener;
     }
 
-    public static AddSuspectDialogFragment newInstance(int reportId, OnSuspectSavedListener listener) {
+    public static AddSuspectDialogFragment newInstance(int reportId) {
         AddSuspectDialogFragment fragment = new AddSuspectDialogFragment();
         Bundle args = new Bundle();
         args.putInt("report_id", reportId);
         fragment.setArguments(args);
-        fragment.listener = listener;
         return fragment;
     }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Use transparent theme to show only the MaterialCardView without dark background
         setStyle(DialogFragment.STYLE_NO_FRAME, android.R.style.Theme_Translucent_NoTitleBar);
+        networkMonitor = new NetworkMonitor(getContext());
         if (getArguments() != null) {
             reportId = getArguments().getInt("report_id");
         }
@@ -259,8 +263,8 @@ public class AddSuspectDialogFragment extends DialogFragment {
                     }
                     
                     getActivity().runOnUiThread(() -> {
-                        if (listener != null) {
-                            listener.onSuspectSaved(suspect);
+                        if (onSuspectAddedListener != null) {
+                            onSuspectAddedListener.onSuspectAdded();
                         }
                         Toast.makeText(getContext(), "Suspect added. Add another or save.", Toast.LENGTH_SHORT).show();
                         loadSuspects(); // Refresh the list
@@ -330,8 +334,8 @@ public class AddSuspectDialogFragment extends DialogFragment {
                     }
                     
                     getActivity().runOnUiThread(() -> {
-                        if (listener != null) {
-                            listener.onSuspectSaved(suspect);
+                        if (onSuspectAddedListener != null) {
+                            onSuspectAddedListener.onSuspectAdded();
                         }
                         Toast.makeText(getContext(), "Suspect saved", Toast.LENGTH_SHORT).show();
                         loadSuspects(); // Refresh the list

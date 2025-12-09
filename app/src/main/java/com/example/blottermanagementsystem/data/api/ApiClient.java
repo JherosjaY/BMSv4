@@ -96,9 +96,82 @@ public class ApiClient {
     }
     
     /**
+     * Login user
+     */
+    public static void login(String username, String password, ApiCallback<LoginResponse> callback) {
+        try {
+            LoginRequest loginRequest = new LoginRequest(username, password);
+            getApiService().login(loginRequest).enqueue(new Callback<LoginResponse>() {
+                @Override
+                public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        LoginResponse loginResponse = response.body();
+                        if (loginResponse.success && loginResponse.data != null) {
+                            Log.d(TAG, "✅ Login successful - User ID: " + loginResponse.data.user.getId());
+                            callback.onSuccess(loginResponse);
+                        } else {
+                            Log.e(TAG, "❌ Login failed: " + loginResponse.message);
+                            callback.onError(loginResponse.message);
+                        }
+                    } else {
+                        Log.e(TAG, "❌ Error logging in: " + response.code());
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                
+                @Override
+                public void onFailure(Call<LoginResponse> call, Throwable t) {
+                    Log.e(TAG, "❌ Network error: " + t.getMessage(), t);
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Exception: " + e.getMessage(), e);
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Register user
+     */
+    public static void register(String username, String email, String password, String confirmPassword, ApiCallback<Object> callback) {
+        try {
+            RegisterRequest registerRequest = new RegisterRequest(username, email, password, confirmPassword);
+            
+            getApiService().register(registerRequest).enqueue(new Callback<RegisterResponse>() {
+                @Override
+                public void onResponse(Call<RegisterResponse> call, Response<RegisterResponse> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        RegisterResponse registerResponse = response.body();
+                        if (registerResponse.success) {
+                            Log.d(TAG, "✅ Registration successful - User: " + email);
+                            callback.onSuccess(registerResponse);
+                        } else {
+                            Log.e(TAG, "❌ Registration failed: " + registerResponse.message);
+                            callback.onError(registerResponse.message);
+                        }
+                    } else {
+                        Log.e(TAG, "❌ Error registering: " + response.code());
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                
+                @Override
+                public void onFailure(Call<RegisterResponse> call, Throwable t) {
+                    Log.e(TAG, "❌ Network error: " + t.getMessage(), t);
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Exception: " + e.getMessage(), e);
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+    
+    /**
      * Verify email with 6-digit code
      */
-    public static void verifyEmail(String email, String code, ApiCallback<String> callback) {
+    public static void verifyEmail(String email, String code, ApiCallback<Object> callback) {
         try {
             // Create request body
             java.util.Map<String, String> body = new java.util.HashMap<>();
@@ -138,7 +211,7 @@ public class ApiClient {
     /**
      * Send verification code to email
      */
-    public static void sendVerificationCode(String email, ApiCallback<String> callback) {
+    public static void sendVerificationCode(String email, ApiCallback<Object> callback) {
         try {
             java.util.Map<String, String> body = new java.util.HashMap<>();
             body.put("email", email);
@@ -170,40 +243,6 @@ public class ApiClient {
         } catch (Exception e) {
             Log.e(TAG, "❌ Exception: " + e.getMessage(), e);
             callback.onError("Exception: " + e.getMessage());
-        }
-    }
-    
-    /**
-     * Login user
-     */
-    public static void login(String username, String password, ApiCallback<LoginResponse> callback) {
-        try {
-            LoginRequest loginRequest = new LoginRequest(username, password);
-            getApiService().login(loginRequest).enqueue(new Callback<LoginResponse>() {
-                @Override
-                public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        LoginResponse loginResponse = response.body();
-                        if (loginResponse.success && loginResponse.data != null) {
-                            Log.d(TAG, "✅ Login successful - User ID: " + loginResponse.data.user.getId());
-                            callback.onSuccess(loginResponse);
-                        } else {
-                            Log.e(TAG, "❌ Login failed: " + loginResponse.message);
-                            callback.onError(loginResponse.message);
-                        }
-                    } else {
-                        Log.e(TAG, "❌ Error logging in: " + response.code());
-                        callback.onError("Error: " + response.code());
-                    }
-                }
-                
-                @Override
-                public void onFailure(Call<LoginResponse> call, Throwable t) {
-                    Log.e(TAG, "❌ Network error: " + t.getMessage(), t);
-                    callback.onError("Network error: " + t.getMessage());
-                }
-            });
-        } catch (Exception e) {
             Log.e(TAG, "❌ Exception: " + e.getMessage(), e);
             callback.onError("Exception: " + e.getMessage());
         }
@@ -326,9 +365,53 @@ public class ApiClient {
     }
     
     /**
+     * Google Sign-In
+     */
+    public static void googleSignIn(String email, String displayName, String photoUrl, ApiCallback<LoginResponse> callback) {
+        try {
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("email", email);
+            if (displayName != null && !displayName.isEmpty()) {
+                body.put("displayName", displayName);
+            }
+            if (photoUrl != null && !photoUrl.isEmpty()) {
+                body.put("photoUrl", photoUrl);
+            }
+            
+            getApiService().googleSignIn(body).enqueue(new Callback<LoginResponse>() {
+                @Override
+                public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        LoginResponse loginResponse = response.body();
+                        if (loginResponse.success && loginResponse.data != null) {
+                            Log.d(TAG, "✅ Google Sign-In successful - User ID: " + loginResponse.data.user.getId());
+                            callback.onSuccess(loginResponse);
+                        } else {
+                            Log.e(TAG, "❌ Google Sign-In failed: " + loginResponse.message);
+                            callback.onError(loginResponse.message);
+                        }
+                    } else {
+                        Log.e(TAG, "❌ Error with Google Sign-In: " + response.code());
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                
+                @Override
+                public void onFailure(Call<LoginResponse> call, Throwable t) {
+                    Log.e(TAG, "❌ Network error: " + t.getMessage(), t);
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Exception: " + e.getMessage(), e);
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+    
+    /**
      * Delete report
      */
-    public static void deleteReport(int reportId, ApiCallback<String> callback) {
+    public static void deleteReport(int reportId, ApiCallback<Object> callback) {
         try {
             getApiService().deleteReport(reportId).enqueue(new Callback<String>() {
                 @Override
@@ -355,10 +438,512 @@ public class ApiClient {
     }
     
     /**
+     * Save FCM token to backend
+     */
+    public static void saveFCMToken(String userId, String fcmToken, String deviceId, ApiCallback<Object> callback) {
+        try {
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("userId", userId);
+            body.put("fcmToken", fcmToken);
+            if (deviceId != null && !deviceId.isEmpty()) {
+                body.put("deviceId", deviceId);
+            }
+
+            getApiService().saveFCMToken(body).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        Log.d(TAG, "✅ FCM token saved successfully");
+                        callback.onSuccess(response.body());
+                    } else {
+                        Log.e(TAG, "❌ Error saving FCM token: " + response.code());
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    Log.e(TAG, "❌ Network error: " + t.getMessage(), t);
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Exception: " + e.getMessage(), e);
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get all hearings
+     */
+    public static void getHearings(ApiCallback<List<com.example.blottermanagementsystem.data.entity.Hearing>> callback) {
+        try {
+            getApiService().getHearings().enqueue(new Callback<List<com.example.blottermanagementsystem.data.entity.Hearing>>() {
+                @Override
+                public void onResponse(Call<List<com.example.blottermanagementsystem.data.entity.Hearing>> call, Response<List<com.example.blottermanagementsystem.data.entity.Hearing>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<List<com.example.blottermanagementsystem.data.entity.Hearing>> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get notifications for user
+     */
+    public static void getNotifications(String userId, ApiCallback<List<com.example.blottermanagementsystem.data.entity.Notification>> callback) {
+        try {
+            getApiService().getNotifications(userId).enqueue(new Callback<List<com.example.blottermanagementsystem.data.entity.Notification>>() {
+                @Override
+                public void onResponse(Call<List<com.example.blottermanagementsystem.data.entity.Notification>> call, Response<List<com.example.blottermanagementsystem.data.entity.Notification>> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<List<com.example.blottermanagementsystem.data.entity.Notification>> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get hearings calendar
+     */
+    public static void getHearingsCalendar(ApiCallback<List<com.example.blottermanagementsystem.data.entity.Hearing>> callback) {
+        getHearings(callback);
+    }
+
+    /**
+     * Mark all notifications as read
+     */
+    public static void markAllNotificationsAsRead(String userId, ApiCallback<Object> callback) {
+        try {
+            getApiService().markAllNotificationsAsRead(userId).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Delete notification
+     */
+    public static void deleteNotification(Integer notificationId, ApiCallback<Object> callback) {
+        try {
+            getApiService().deleteNotification(notificationId).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Forgot password
+     */
+    public static void forgotPassword(String email, ApiCallback<Object> callback) {
+        try {
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("email", email);
+            getApiService().forgotPassword(body).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Reset password
+     */
+    public static void resetPassword(String email, String code, String newPassword, ApiCallback<Object> callback) {
+        try {
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("email", email);
+            body.put("code", code);
+            body.put("newPassword", newPassword);
+            getApiService().resetPassword(body).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+
+    /**
+     * Get admin statistics
+     */
+    public static void getAdminStatistics(ApiCallback<Object> callback) {
+        try {
+            getApiService().getAdminStatistics().enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get profile
+     */
+    public static void getProfile(String userId, ApiCallback<Object> callback) {
+        try {
+            getApiService().getProfile(userId).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update profile
+     */
+    public static void updateProfile(String userId, String firstName, String lastName, ApiCallback<Object> callback) {
+        try {
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("firstName", firstName);
+            body.put("lastName", lastName);
+            getApiService().updateProfile(userId, body).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Delete user
+     */
+    public static void deleteUser(String userId, ApiCallback<Object> callback) {
+        try {
+            getApiService().deleteUser(userId).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Add witness
+     */
+    public static void addWitness(Integer reportId, java.util.Map<String, Object> witnessData, ApiCallback<Object> callback) {
+        try {
+            getApiService().addWitness(reportId, witnessData).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Create officer
+     */
+    public static void createOfficer(String firstName, String lastName, String email, String rank, String badgeNumber, ApiCallback<Object> callback) {
+        try {
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("firstName", firstName);
+            body.put("lastName", lastName);
+            body.put("email", email);
+            body.put("rank", rank);
+            body.put("badgeNumber", badgeNumber);
+            getApiService().createOfficer(body).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Register admin
+     */
+    public static void registerAdmin(String email, String password, String firstName, String lastName, ApiCallback<Object> callback) {
+        try {
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("email", email);
+            body.put("password", password);
+            body.put("firstName", firstName);
+            body.put("lastName", lastName);
+            getApiService().registerAdmin(body).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Change password
+     */
+    public static void changePassword(String userId, java.util.Map<String, String> body, ApiCallback<Object> callback) {
+        try {
+            getApiService().changePassword(userId, body).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update officer
+     */
+    public static void updateOfficer(int officerId, java.util.Map<String, Object> body, ApiCallback<Object> callback) {
+        try {
+            getApiService().updateOfficer(officerId, body).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Delete officer
+     */
+    public static void deleteOfficer(int officerId, ApiCallback<Object> callback) {
+        try {
+            getApiService().deleteOfficer(officerId).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get admin officers
+     */
+    public static void getAdminOfficers(ApiCallback<java.util.List<com.example.blottermanagementsystem.data.entity.Officer>> callback) {
+        try {
+            getApiService().getAllOfficers().enqueue(new Callback<java.util.List<com.example.blottermanagementsystem.data.entity.Officer>>() {
+                @Override
+                public void onResponse(Call<java.util.List<com.example.blottermanagementsystem.data.entity.Officer>> call, Response<java.util.List<com.example.blottermanagementsystem.data.entity.Officer>> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<java.util.List<com.example.blottermanagementsystem.data.entity.Officer>> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get assigned reports
+     */
+    public static void getAssignedReports(ApiCallback<java.util.List<com.example.blottermanagementsystem.data.entity.BlotterReport>> callback) {
+        try {
+            getApiService().getAllReports().enqueue(new Callback<java.util.List<com.example.blottermanagementsystem.data.entity.BlotterReport>>() {
+                @Override
+                public void onResponse(Call<java.util.List<com.example.blottermanagementsystem.data.entity.BlotterReport>> call, Response<java.util.List<com.example.blottermanagementsystem.data.entity.BlotterReport>> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Error: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<java.util.List<com.example.blottermanagementsystem.data.entity.BlotterReport>> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
      * Generic API callback interface
      */
     public interface ApiCallback<T> {
         void onSuccess(T result);
         void onError(String errorMessage);
     }
+}
+
+// FCM Token Response
+class SaveFCMTokenResponse {
+    public boolean success;
+    public String message;
 }

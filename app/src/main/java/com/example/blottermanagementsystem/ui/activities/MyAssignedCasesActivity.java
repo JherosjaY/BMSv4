@@ -3,24 +3,25 @@ package com.example.blottermanagementsystem.ui.activities;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.BlotterReport;
 import com.example.blottermanagementsystem.ui.adapters.ReportAdapter;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
 
 public class MyAssignedCasesActivity extends BaseActivity {
     
     private RecyclerView recyclerCases;
     private LinearLayout emptyState;
-    private BlotterDatabase database;
     private PreferencesManager preferencesManager;
+    private NetworkMonitor networkMonitor;
     private ReportAdapter adapter;
     private List<BlotterReport> casesList = new ArrayList<>();
     
@@ -29,8 +30,8 @@ public class MyAssignedCasesActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_assigned_cases);
         
-        database = BlotterDatabase.getDatabase(this);
         preferencesManager = new PreferencesManager(this);
+        networkMonitor = new NetworkMonitor(this);
         
         setupToolbar();
         initViews();
@@ -64,47 +65,81 @@ public class MyAssignedCasesActivity extends BaseActivity {
     }
     
     private void loadAssignedCases() {
-        int officerId = preferencesManager.getUserId();
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            emptyState.setVisibility(android.view.View.VISIBLE);
+            recyclerCases.setVisibility(android.view.View.GONE);
+            return;
+        }
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            // Get all reports
-            List<BlotterReport> allReports = database.blotterReportDao().getAllReports();
-            List<BlotterReport> assignedReports = new ArrayList<>();
-            
-            // Filter reports assigned to this officer
-            for (BlotterReport report : allReports) {
-                if (report.getAssignedOfficerId() != null && report.getAssignedOfficerId() == officerId) {
-                    assignedReports.add(report);
+        // Load from API (pure online)
+        ApiClient.getAllReports(new ApiClient.ApiCallback<List<BlotterReport>>() {
+            @Override
+            public void onSuccess(List<BlotterReport> allReports) {
+                if (isFinishing() || isDestroyed()) return;
+                
+                // Filter reports assigned to this officer
+                String officerIdStr = preferencesManager.getUserId();
+                int officerId = 0;
+                try {
+                    officerId = Integer.parseInt(officerIdStr);
+                } catch (NumberFormatException e) {
+                    android.util.Log.e("MyAssignedCasesActivity", "Invalid officerId: " + officerIdStr);
                 }
+                List<BlotterReport> assignedReports = new ArrayList<>();
+                
+                for (BlotterReport report : allReports) {
+                    if (report.getAssignedOfficerId() != null && report.getAssignedOfficerId() == officerId) {
+                        assignedReports.add(report);
+                    }
+                }
+                
+                runOnUiThread(() -> {
+                    casesList.clear();
+                    casesList.addAll(assignedReports);
+                    adapter.updateReports(casesList);
+                    
+                    if (assignedReports.isEmpty()) {
+                        emptyState.setVisibility(android.view.View.VISIBLE);
+                        recyclerCases.setVisibility(android.view.View.GONE);
+                    } else {
+                        emptyState.setVisibility(android.view.View.GONE);
+                        recyclerCases.setVisibility(android.view.View.VISIBLE);
+                    }
+                });
             }
             
-            runOnUiThread(() -> {
-                casesList.clear();
-                casesList.addAll(assignedReports);
-                adapter.updateReports(casesList);
+            @Override
+            public void onError(String errorMessage) {
+                if (isFinishing() || isDestroyed()) return;
                 
-                if (assignedReports.isEmpty()) {
+                runOnUiThread(() -> {
+                    Toast.makeText(MyAssignedCasesActivity.this, "Error: " + errorMessage, Toast.LENGTH_SHORT).show();
                     emptyState.setVisibility(android.view.View.VISIBLE);
                     recyclerCases.setVisibility(android.view.View.GONE);
-                } else {
-                    emptyState.setVisibility(android.view.View.GONE);
-                    recyclerCases.setVisibility(android.view.View.VISIBLE);
-                }
-            });
+                });
+            }
         });
     }
     
     // Quiet loading method to prevent black screen flicker
     private void loadAssignedCasesQuietly() {
-        int officerId = preferencesManager.getUserId();
-        
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                // Get all reports
-                List<BlotterReport> allReports = database.blotterReportDao().getAllReports();
-                List<BlotterReport> assignedReports = new ArrayList<>();
+        // Load from API quietly (no loading dialog)
+        ApiClient.getAllReports(new ApiClient.ApiCallback<List<BlotterReport>>() {
+            @Override
+            public void onSuccess(List<BlotterReport> allReports) {
+                if (isFinishing() || isDestroyed()) return;
                 
                 // Filter reports assigned to this officer
+                String officerIdStr = preferencesManager.getUserId();
+                int officerId = 0;
+                try {
+                    officerId = Integer.parseInt(officerIdStr);
+                } catch (NumberFormatException e) {
+                    android.util.Log.e("MyAssignedCasesActivity", "Invalid officerId: " + officerIdStr);
+                }
+                List<BlotterReport> assignedReports = new ArrayList<>();
+                
                 for (BlotterReport report : allReports) {
                     if (report.getAssignedOfficerId() != null && report.getAssignedOfficerId() == officerId) {
                         assignedReports.add(report);
@@ -129,8 +164,11 @@ public class MyAssignedCasesActivity extends BaseActivity {
                         }
                     });
                 }
-            } catch (Exception e) {
-                android.util.Log.e("MyAssignedCases", "Error in quiet loading: " + e.getMessage());
+            }
+            
+            @Override
+            public void onError(String errorMessage) {
+                android.util.Log.w("MyAssignedCases", "Error in quiet loading: " + errorMessage);
             }
         });
     }

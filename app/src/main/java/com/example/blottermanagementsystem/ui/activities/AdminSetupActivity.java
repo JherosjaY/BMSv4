@@ -8,15 +8,17 @@ import androidx.appcompat.widget.Toolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
-import com.example.blottermanagementsystem.data.entity.User;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
+import java.util.HashMap;
+import java.util.Map;
 
 public class AdminSetupActivity extends AppCompatActivity {
     
     private TextInputEditText etFirstName, etLastName, etUsername, etPassword;
     private MaterialButton btnCreateAdmin;
-    private BlotterDatabase database;
+    private NetworkMonitor networkMonitor;
     private PreferencesManager preferencesManager;
     
     @Override
@@ -24,7 +26,7 @@ public class AdminSetupActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_setup);
         
-        database = BlotterDatabase.getDatabase(this);
+        networkMonitor = new NetworkMonitor(this);
         preferencesManager = new PreferencesManager(this);
         
         setupToolbar();
@@ -89,32 +91,35 @@ public class AdminSetupActivity extends AppCompatActivity {
             return;
         }
         
+        // Check internet connection
+        if (!networkMonitor.isOnline()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         // Show loading for admin creation
         com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Creating admin...");
         
-        new Thread(() -> {
-            try {
-            User admin = new User("Admin", "User", "admin", "admin123", "Admin");
-            admin.setCreatedAt(System.currentTimeMillis());
-            
-            long userId = database.userDao().insertUser(admin);
-            
-            runOnUiThread(() -> {
+        // Create admin via API (pure online)
+        ApiClient.registerAdmin(username, password, firstName, lastName, new ApiClient.ApiCallback<Object>() {
+            @Override
+            public void onSuccess(Object result) {
                 com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                Toast.makeText(AdminSetupActivity.this, "Admin created successfully!", Toast.LENGTH_SHORT).show();
                 
                 // Navigate to login
-                Intent intent = new Intent(this, WelcomeActivity.class);
+                Intent intent = new Intent(AdminSetupActivity.this, WelcomeActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 startActivity(intent);
                 finish();
-            });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    Toast.makeText(this, "Error creating admin: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
             }
-        }).start();
+            
+            @Override
+            public void onError(String errorMessage) {
+                com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                Toast.makeText(AdminSetupActivity.this, "Error: " + errorMessage, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
     
     @Override

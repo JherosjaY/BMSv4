@@ -49,6 +49,20 @@ public interface ApiService {
     @POST("api/auth/register")
     Call<RegisterResponse> register(@Body RegisterRequest registerRequest);
     
+    /**
+     * Google Sign-In
+     * POST /api/auth/google-signin
+     */
+    @POST("api/auth/google-signin")
+    Call<LoginResponse> googleSignIn(@Body java.util.Map<String, String> body);
+    
+    /**
+     * Save FCM Token
+     * POST /api/users/fcm-token
+     */
+    @POST("api/users/fcm-token")
+    Call<Object> saveFCMToken(@Body java.util.Map<String, String> body);
+    
     // ============ REPORTS ============
     
     /**
@@ -246,6 +260,137 @@ public interface ApiService {
      */
     @DELETE("summons/{id}")
     Call<String> deleteSummons(@Path("id") int summonsId);
+    
+    // ============ HEARINGS (NEW) ============
+    
+    /**
+     * Get all hearings
+     * GET /api/hearings
+     */
+    @GET("api/hearings")
+    Call<List<com.example.blottermanagementsystem.data.entity.Hearing>> getHearings();
+    
+    // ============ NOTIFICATIONS ============
+    
+    /**
+     * Get notifications for user
+     * GET /api/notifications/{userId}
+     */
+    @GET("api/notifications/{userId}")
+    Call<List<com.example.blottermanagementsystem.data.entity.Notification>> getNotifications(@Path("userId") String userId);
+    
+    /**
+     * Mark all notifications as read
+     * PUT /api/notifications/{userId}/read-all
+     */
+    @PUT("api/notifications/{userId}/read-all")
+    Call<Object> markAllNotificationsAsRead(@Path("userId") String userId);
+    
+    /**
+     * Delete notification
+     * DELETE /api/notifications/{id}
+     */
+    @DELETE("api/notifications/{id}")
+    Call<Object> deleteNotification(@Path("id") Integer notificationId);
+    
+    // ============ PASSWORD & AUTH ============
+    
+    /**
+     * Forgot password
+     * POST /api/auth/forgot-password
+     */
+    @POST("api/auth/forgot-password")
+    Call<Object> forgotPassword(@Body java.util.Map<String, String> body);
+    
+    /**
+     * Reset password
+     * POST /api/auth/reset-password
+     */
+    @POST("api/auth/reset-password")
+    Call<Object> resetPassword(@Body java.util.Map<String, String> body);
+    
+    // ============ USERS ============
+    
+    /**
+     * Get user profile
+     * GET /api/users/{userId}
+     */
+    @GET("api/users/{userId}")
+    Call<Object> getProfile(@Path("userId") String userId);
+    
+    /**
+     * Update user profile
+     * PUT /api/users/{userId}
+     */
+    @PUT("api/users/{userId}")
+    Call<Object> updateProfile(@Path("userId") String userId, @Body java.util.Map<String, String> body);
+    
+    /**
+     * Delete user
+     * DELETE /api/users/{userId}
+     */
+    @DELETE("api/users/{userId}")
+    Call<Object> deleteUser(@Path("userId") String userId);
+    
+    /**
+     * Change password
+     * POST /api/users/{userId}/change-password
+     */
+    @POST("api/users/{userId}/change-password")
+    Call<Object> changePassword(@Path("userId") String userId, @Body java.util.Map<String, String> body);
+    
+    // ============ WITNESSES (API) ============
+    
+    /**
+     * Add witness to report
+     * POST /api/reports/{reportId}/witnesses
+     */
+    @POST("api/reports/{reportId}/witnesses")
+    Call<Object> addWitness(@Path("reportId") Integer reportId, @Body java.util.Map<String, Object> body);
+    
+    // ============ OFFICERS ============
+    
+    /**
+     * Create officer
+     * POST /api/officers
+     */
+    @POST("api/officers")
+    Call<Object> createOfficer(@Body java.util.Map<String, String> body);
+    
+    /**
+     * Register admin
+     * POST /api/auth/register-admin
+     */
+    @POST("api/auth/register-admin")
+    Call<Object> registerAdmin(@Body java.util.Map<String, String> body);
+    
+    /**
+     * Get admin statistics
+     * GET /api/admin/statistics
+     */
+    @GET("api/admin/statistics")
+    Call<Object> getAdminStatistics();
+    
+    /**
+     * Update officer
+     * PUT /api/officers/{id}
+     */
+    @PUT("api/officers/{id}")
+    Call<Object> updateOfficer(@Path("id") int id, @Body java.util.Map<String, Object> body);
+    
+    /**
+     * Delete officer
+     * DELETE /api/officers/{id}
+     */
+    @DELETE("api/officers/{id}")
+    Call<Object> deleteOfficer(@Path("id") int id);
+    
+    /**
+     * Get all officers
+     * GET /api/officers
+     */
+    @GET("api/officers")
+    Call<java.util.List<com.example.blottermanagementsystem.data.entity.Officer>> getAllOfficers();
 }
 
 // ============ AUTH REQUEST/RESPONSE CLASSES ============

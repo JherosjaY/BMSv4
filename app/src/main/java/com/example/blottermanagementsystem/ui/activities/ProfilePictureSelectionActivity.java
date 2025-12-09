@@ -65,7 +65,7 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
         preferencesManager = new PreferencesManager(this);
         
         // Debug: Check userId immediately
-        int userId = preferencesManager.getUserId();
+        String userId = preferencesManager.getUserId();
         int userIdFromIntent = getIntent().getIntExtra("USER_ID", -1);
         
         android.util.Log.d("ProfilePictureSelection", "=== ONCREATE ===");
@@ -74,10 +74,10 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
         android.util.Log.d("ProfilePictureSelection", "Is logged in: " + preferencesManager.isLoggedIn());
         android.util.Log.d("ProfilePictureSelection", "User role: " + preferencesManager.getUserRole());
         
-        // If PreferencesManager has -1 but Intent has valid userId, save it
-        if (userId == -1 && userIdFromIntent != -1) {
+        // If PreferencesManager has empty userId but Intent has valid userId, save it
+        if ((userId == null || userId.isEmpty()) && userIdFromIntent != -1) {
             android.util.Log.d("ProfilePictureSelection", "⚠️ PreferencesManager lost userId! Restoring from Intent: " + userIdFromIntent);
-            preferencesManager.setUserId(userIdFromIntent);
+            preferencesManager.setUserId(String.valueOf(userIdFromIntent));
             preferencesManager.setLoggedIn(true);
         }
         
@@ -389,22 +389,24 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
             preferencesManager.setHasSelectedPfp(false);
             
             // Update user in database with names and picture
-            int userIdTemp = preferencesManager.getUserId();
-            if (userIdTemp == -1) {
+            String userIdStr = preferencesManager.getUserId();
+            String userIdTemp = userIdStr;
+            if (userIdTemp == null || userIdTemp.isEmpty()) {
                 int userIdFromIntent = getIntent().getIntExtra("USER_ID", -1);
                 if (userIdFromIntent != -1) {
-                    userIdTemp = userIdFromIntent;
+                    userIdTemp = String.valueOf(userIdFromIntent);
                     preferencesManager.setUserId(userIdTemp);
                 }
             }
             
-            final int userId = userIdTemp;
+            final String userId = userIdTemp;
             
-            if (userId != -1) {
+            if (userId != null && !userId.isEmpty()) {
                 Executors.newSingleThreadExecutor().execute(() -> {
                     com.example.blottermanagementsystem.data.database.BlotterDatabase database = 
                         com.example.blottermanagementsystem.data.database.BlotterDatabase.getDatabase(this);
-                    com.example.blottermanagementsystem.data.entity.User user = database.userDao().getUserById(userId);
+                    int userIdInt = Integer.parseInt(userId);
+                    com.example.blottermanagementsystem.data.entity.User user = database.userDao().getUserById(userIdInt);
                     
                     if (user != null) {
                         user.setFirstName(firstName);
@@ -493,19 +495,8 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
         
         android.util.Log.d("ProfilePictureSelection", "🌐 Calling API to update profile...");
         
-        // Create user object with updated data
-        com.example.blottermanagementsystem.data.entity.User updatedUser = new com.example.blottermanagementsystem.data.entity.User();
-        updatedUser.setId(userId);
-        updatedUser.setFirstName(firstName);
-        updatedUser.setLastName(lastName);
-        updatedUser.setProfileCompleted(true);
-        
-        if (selectedImageUri != null) {
-            updatedUser.setProfilePhotoUri(selectedImageUri.toString());
-        }
-        
         // Call API to update profile
-        com.example.blottermanagementsystem.utils.ApiClient.updateProfile(userId, updatedUser, 
+        com.example.blottermanagementsystem.utils.ApiClient.updateProfile(userId, firstName, lastName, 
             new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
                 @Override
                 public void onSuccess(Object response) {
@@ -722,6 +713,14 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
         } catch (Exception e) {
             android.util.Log.e("ProfilePictureSelection", "Error activating step: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+    
+    private void showLoading(boolean show) {
+        if (show) {
+            com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Updating profile...");
+        } else {
+            com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
         }
     }
 }

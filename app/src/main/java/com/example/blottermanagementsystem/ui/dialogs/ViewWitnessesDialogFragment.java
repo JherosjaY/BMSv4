@@ -13,11 +13,14 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Witness;
 import com.example.blottermanagementsystem.ui.adapters.WitnessListAdapter;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import com.google.android.material.card.MaterialCardView;
+import android.widget.Toast;
 
+import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -29,6 +32,7 @@ public class ViewWitnessesDialogFragment extends DialogFragment {
     private TextView tvEmptyState;
     private WitnessListAdapter adapter;
     private List<Witness> witnessList = new ArrayList<>();
+    private NetworkMonitor networkMonitor;
     
     public static ViewWitnessesDialogFragment newInstance(int reportId) {
         ViewWitnessesDialogFragment fragment = new ViewWitnessesDialogFragment();
@@ -42,6 +46,7 @@ public class ViewWitnessesDialogFragment extends DialogFragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setStyle(DialogFragment.STYLE_NO_FRAME, android.R.style.Theme_Material_Dialog_MinWidth);
+        networkMonitor = new NetworkMonitor(getContext());
         if (getArguments() != null) {
             reportId = getArguments().getInt("report_id");
         }

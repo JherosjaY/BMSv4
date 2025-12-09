@@ -15,7 +15,7 @@ public class ApiRepositoryExtensions {
     }
     
     public void updateFcmToken(BlotterApiService.FcmTokenRequest request, 
-                              ApiRepository.ApiCallback<String> callback) {
+                              ApiRepository.ApiCallback<Object> callback) {
         apiService.updateFcmToken(request).enqueue(new Callback<ApiResponse<String>>() {
             @Override
             public void onResponse(Call<ApiResponse<String>> call, 

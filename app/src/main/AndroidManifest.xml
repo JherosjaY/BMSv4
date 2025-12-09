@@ -122,16 +122,23 @@
         <activity android:name=".ui.activities.SummonsManagementActivity" android:exported="false" />
         
         <!-- Admin Report Oversight & Setup -->
-        <activity android:name=".ui.activities.AdminReportOversightActivity" android:exported="false" />
         <activity android:name=".ui.activities.AdminSetupActivity" android:exported="false" />
         <activity android:name=".ui.activities.HearingCalendarActivity" android:exported="false" />
         <activity android:name=".ui.activities.EvidenceListActivity" android:exported="false" />
         
-
-        <!-- ✅ View Person History Detail Activity -->
+        <!--  View Person History Detail Activity -->
         <activity 
             android:name=".ui.activities.ViewPersonHistoryDetailActivity" 
             android:exported="false" />
+
+        <!-- Firebase Cloud Messaging Service -->
+        <service
+            android:name=".services.FirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <provider
             android:name="androidx.core.content.FileProvider"

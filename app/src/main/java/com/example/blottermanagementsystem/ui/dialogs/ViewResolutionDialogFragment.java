@@ -11,26 +11,31 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.DialogFragment;
 
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Resolution;
+import com.example.blottermanagementsystem.utils.ApiClient;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
 import com.google.android.material.card.MaterialCardView;
+import android.widget.Toast;
+import java.util.Date;
 
 import java.text.SimpleDateFormat;
-import java.util.Date;
+import com.example.blottermanagementsystem.data.database.BlotterDatabase;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.Executors;
+import java.util.Locale;
 
 public class ViewResolutionDialogFragment extends DialogFragment {
     
     private int reportId;
-    private MaterialCardView cardContainer;
     private TextView tvEmptyState;
     private TextView tvResolutionType;
     private TextView tvDescription;
     private TextView tvDocumentedBy;
     private TextView tvDocumentedDate;
     private TextView tvNotes;
+    private MaterialCardView cardContainer;
+    private NetworkMonitor networkMonitor;
     
     public static ViewResolutionDialogFragment newInstance(int reportId) {
         ViewResolutionDialogFragment fragment = new ViewResolutionDialogFragment();
@@ -44,6 +49,7 @@ public class ViewResolutionDialogFragment extends DialogFragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setStyle(DialogFragment.STYLE_NO_FRAME, android.R.style.Theme_Material_Dialog_MinWidth);
+        networkMonitor = new NetworkMonitor(getContext());
         if (getArguments() != null) {
             reportId = getArguments().getInt("report_id");
         }

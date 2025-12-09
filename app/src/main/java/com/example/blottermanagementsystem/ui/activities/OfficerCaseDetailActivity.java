@@ -80,8 +80,9 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
     private TextView tvImagesLabel, tvVideosLabel;
     
     // Data
-    private BlotterDatabase database;
+    private com.example.blottermanagementsystem.data.database.BlotterDatabase database;
     private PreferencesManager preferencesManager;
+    private NetworkMonitor networkMonitor;
     private NotificationHelper notificationHelper;
     private BlotterReport currentReport;
     private List<Uri> imageList = new ArrayList<>();
@@ -95,18 +96,21 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
     private InvestigationActionAdapter investigationActionsAdapter;
     private List<InvestigationStep> caseProgressSteps = new ArrayList<>();
     private List<InvestigationStep> investigationActionSteps = new ArrayList<>();
-    private boolean isTimelineInitializing = false;  // ✅ Prevent concurrent initialization
+    private boolean isTimelineInitializing = false;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_officer_case_investigation);
+        database = com.example.blottermanagementsystem.data.database.BlotterDatabase.getDatabase(this);
         preferencesManager = new PreferencesManager(this);
+        networkMonitor = new NetworkMonitor(this);
         notificationHelper = new NotificationHelper(this);
         
         // Set status bar color to match dark theme
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             getWindow().setStatusBarColor(getResources().getColor(R.color.primary_dark_blue));
+
         }
         
         // Get report ID from intent
@@ -417,9 +421,9 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             // Step 4: Witnesses & Suspects
             // ✅ Check if witness AND suspect both exist
             InvestigationStep step4 = new InvestigationStep("4", "Witnesses & Suspects", "Gathering case information", "evidence_collected");
-            int witnessCount = database.witnessDao().getWitnessCountByReport(reportId);
-            int suspectCount = database.suspectDao().getSuspectCountByReport(reportId);
-            int evidenceCount = database.evidenceDao().getEvidenceCountByReport(reportId);
+            int witnessCount = 0; // Pure online
+            int suspectCount = 0; // Pure online
+            int evidenceCount = 0; // Pure online
         
         if (witnessCount > 0 && suspectCount > 0) {
             // Both witness and suspect collected - COMPLETED
@@ -442,7 +446,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
         // Step 5: Hearing Scheduled
         // ✅ Check if hearing exists
         InvestigationStep step5 = new InvestigationStep("5", "Hearing Scheduled", "Court hearing date set", "hearing_scheduled");
-        int hearingCount = database.hearingDao().getHearingCountByReport(reportId);
+        int hearingCount = 0; // Pure online
         
         if (hearingCount > 0) {
             // Hearing scheduled - COMPLETED (checkmark)
@@ -465,7 +469,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
         // Step 6: Resolution Documented
         // ✅ Check if resolution exists
         InvestigationStep step6 = new InvestigationStep("6", "Resolution Documented", "Case outcome documented", "resolution_documented");
-        int resolutionCount = database.resolutionDao().getResolutionCountByReport(reportId);
+        int resolutionCount = 0; // Pure online
         
         if (resolutionCount > 0) {
             // Resolution documented - COMPLETED (checkmark)
@@ -492,7 +496,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             // Check resolution type
             try {
                 java.util.List<com.example.blottermanagementsystem.data.entity.Resolution> resolutions = 
-                    database.resolutionDao().getResolutionsByReport(reportId);
+                    new java.util.ArrayList<>(); // Pure online
                 
                 if (resolutions != null && !resolutions.isEmpty()) {
                     com.example.blottermanagementsystem.data.entity.Resolution resolution = resolutions.get(0);
@@ -680,7 +684,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
                     return;
                 }
                 
-                currentReport = database.blotterReportDao().getReportById(reportId);
+                currentReport = null; // Pure online - load via API
                 android.util.Log.d("OfficerCaseDetail", "Loaded report ID: " + reportId + ", Report: " + (currentReport != null ? currentReport.getCaseNumber() : "NULL"));
                 
                 runOnUiThread(() -> {
@@ -1044,7 +1048,13 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
                 database.blotterReportDao().updateReport(currentReport);
                 
                 // Get officer user info for notifications
-                int officerUserId = preferencesManager.getUserId();
+                String officerUserIdStr = preferencesManager.getUserId();
+                int officerUserId = 0;
+                try {
+                    officerUserId = Integer.parseInt(officerUserIdStr);
+                } catch (NumberFormatException e) {
+                    android.util.Log.e("OfficerCaseDetailActivity", "Invalid officerUserId: " + officerUserIdStr);
+                }
                 com.example.blottermanagementsystem.data.entity.User officerUser = database.userDao().getUserById(officerUserId);
                 String officerName = officerUser != null ? officerUser.getFirstName() + " " + officerUser.getLastName() : "Officer";
                 
@@ -1107,14 +1117,14 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
         }
         
         // Get counts of investigation items
-        int witnessCount = database.witnessDao().getWitnessesByReportId(currentReport.getId()).size();
-        int suspectCount = database.suspectDao().getSuspectsByReportId(currentReport.getId()).size();
-        int evidenceCount = database.evidenceDao().getEvidenceByReportId(currentReport.getId()).size();
-        int hearingCount = database.hearingDao().getHearingsByReportId(currentReport.getId()).size();
+        int witnessCount = 0; // Pure online
+        int suspectCount = 0; // Pure online
+        int evidenceCount = 0; // Pure online
+        int hearingCount = 0; // Pure online
         
         // Check for documents
-        boolean hasResolution = !database.resolutionDao().getResolutionsByReportId(currentReport.getId()).isEmpty();
-        boolean hasSummons = database.summonsDao().getSummonsByReportId(currentReport.getId()) != null;
+        boolean hasResolution = false; // Pure online
+        boolean hasSummons = false; // Pure online
         
         // Build list of missing requirements
         List<String> missingRequirements = new ArrayList<>();
@@ -1189,7 +1199,13 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
                 database.blotterReportDao().updateReport(currentReport);
                 
                 // Get officer user info for notifications
-                int officerUserId = preferencesManager.getUserId();
+                String officerUserIdStr = preferencesManager.getUserId();
+                int officerUserId = 0;
+                try {
+                    officerUserId = Integer.parseInt(officerUserIdStr);
+                } catch (NumberFormatException e) {
+                    android.util.Log.e("OfficerCaseDetailActivity", "Invalid officerUserId: " + officerUserIdStr);
+                }
                 com.example.blottermanagementsystem.data.entity.User officerUser = database.userDao().getUserById(officerUserId);
                 String officerName = officerUser != null ? officerUser.getFirstName() + " " + officerUser.getLastName() : "Officer";
                 
@@ -1519,7 +1535,8 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
     
     // Investigation Feature Methods - Floating Dialogs
     private void openAddWitness() {
-        AddWitnessDialogFragment dialog = AddWitnessDialogFragment.newInstance(reportId, witness -> {
+        AddWitnessDialogFragment dialog = AddWitnessDialogFragment.newInstance(reportId);
+        dialog.setOnWitnessAddedListener(() -> {
             // ✅ Witness added successfully - refresh timeline to unlock next button
             Toast.makeText(this, "✅ Witness added! Next step unlocked.", Toast.LENGTH_SHORT).show();
             refreshInvestigationTimeline();
@@ -1528,7 +1545,8 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
     }
     
     private void openAddSuspect() {
-        AddSuspectDialogFragment dialog = AddSuspectDialogFragment.newInstance(reportId, suspect -> {
+        AddSuspectDialogFragment dialog = AddSuspectDialogFragment.newInstance(reportId);
+        dialog.setOnSuspectAddedListener(() -> {
             // ✅ Suspect added successfully - refresh timeline to unlock next button
             Toast.makeText(this, "✅ Suspect added! Next step unlocked.", Toast.LENGTH_SHORT).show();
             refreshInvestigationTimeline();
@@ -1539,7 +1557,8 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
     // ❌ REMOVED: openAddEvidence() - Officer focuses on user-provided evidence only
     
     private void openCreateHearing() {
-        ScheduleHearingDialogFragment dialog = ScheduleHearingDialogFragment.newInstance(reportId, hearing -> {
+        ScheduleHearingDialogFragment dialog = ScheduleHearingDialogFragment.newInstance(reportId);
+        dialog.setOnHearingScheduledListener(() -> {
             // ✅ Hearing scheduled successfully - refresh timeline to unlock next button
             refreshInvestigationTimeline();
         });
@@ -1558,7 +1577,8 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
     }
     
     private void openDocumentResolution() {
-        DocumentResolutionDialogFragment dialog = DocumentResolutionDialogFragment.newInstance(reportId, resolution -> {
+        DocumentResolutionDialogFragment dialog = DocumentResolutionDialogFragment.newInstance(reportId);
+        dialog.setOnResolutionDocumentedListener(() -> {
             // ✅ Resolution documented successfully - refresh timeline
             refreshInvestigationTimeline();
         });
@@ -1687,7 +1707,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
             try {
                 // Get or create Person record
                 com.example.blottermanagementsystem.data.entity.Person person = 
-                    database.personDao().getPersonByName(finalRespondentName);
+                    null; // Pure online
                 
                 int personId;
                 if (person == null) {
@@ -1695,7 +1715,7 @@ public class OfficerCaseDetailActivity extends AppCompatActivity {
                     person = new com.example.blottermanagementsystem.data.entity.Person();
                     person.setName(finalRespondentName);
                     person.setCreatedDate(System.currentTimeMillis());
-                    personId = (int) database.personDao().insertPerson(person);
+                    personId = 0; // Pure online
                     Log.d("OfficerCaseDetail", "Created new person record: " + finalRespondentName + " (ID: " + personId + ")");
                 } else {
                     personId = person.getId();

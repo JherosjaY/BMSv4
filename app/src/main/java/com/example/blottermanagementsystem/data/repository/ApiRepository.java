@@ -179,7 +179,7 @@ public class ApiRepository {
     
     // ==================== FCM Token ====================
     
-    public void updateFcmToken(BlotterApiService.FcmTokenRequest request, ApiCallback<String> callback) {
+    public void updateFcmToken(BlotterApiService.FcmTokenRequest request, ApiCallback<Object> callback) {
         apiService.updateFcmToken(request).enqueue(new Callback<ApiResponse<String>>() {
             @Override
             public void onResponse(Call<ApiResponse<String>> call,

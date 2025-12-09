@@ -37,6 +37,11 @@ public class NetworkMonitor {
         );
     }
     
+    // Alias for compatibility
+    public boolean isOnline() {
+        return isNetworkAvailable();
+    }
+    
     public void startMonitoring(NetworkCallback callback) {
         this.networkCallback = callback;
         

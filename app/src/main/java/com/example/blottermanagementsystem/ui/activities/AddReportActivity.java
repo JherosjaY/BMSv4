@@ -1322,8 +1322,13 @@ public class AddReportActivity extends BaseActivity {
         report.setIncidentDate(selectedDate.getTimeInMillis());
         
         // Set user ID
-        int userId = preferencesManager.getUserId();
-        report.setReportedById(userId);
+        String userIdStr = preferencesManager.getUserId();
+        try {
+            int userId = Integer.parseInt(userIdStr);
+            report.setReportedById(userId);
+        } catch (NumberFormatException e) {
+            android.util.Log.e("AddReportActivity", "Invalid userId format: " + userIdStr);
+        }
         
         // Save images
         if (!imageList.isEmpty()) {

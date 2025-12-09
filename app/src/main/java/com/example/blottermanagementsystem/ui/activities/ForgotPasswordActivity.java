@@ -12,14 +12,8 @@ import android.widget.Toast;
 import androidx.cardview.widget.CardView;
 
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
-import com.example.blottermanagementsystem.data.entity.User;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
-
-import java.security.MessageDigest;
-import java.util.Random;
-import java.util.concurrent.Executors;
 
 public class ForgotPasswordActivity extends BaseActivity {
     
@@ -31,10 +25,7 @@ public class ForgotPasswordActivity extends BaseActivity {
     private CardView cardResetCode;
     private ProgressBar progressBar;
     
-    private BlotterDatabase database;
-    private String generatedCode;
     private String userEmail;
-    private long codeExpiryTime;
     private android.os.Handler countdownHandler;
     private Runnable countdownRunnable;
     
@@ -42,8 +33,6 @@ public class ForgotPasswordActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_forgot_password);
-        
-        database = BlotterDatabase.getDatabase(this);
         
         initViews();
         setupListeners();
@@ -93,34 +82,60 @@ public class ForgotPasswordActivity extends BaseActivity {
         }
         
         hideError();
-        // Show loading for sending reset code
+        
+        // ✅ PURE ONLINE: Check internet first
+        com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+            new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
+        
+        if (!networkMonitor.isNetworkAvailable()) {
+            android.util.Log.e("ForgotPassword", "❌ No internet connection");
+            showError("No internet connection. Please check your connection and try again.");
+            return;
+        }
+        
+        // Online - send reset code via API
+        android.util.Log.d("ForgotPassword", "🌐 Sending reset code via API for email: " + email);
         com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "📧 Sending reset code...");
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                User user = database.userDao().getUserByEmail(email);
+        
+        com.example.blottermanagementsystem.utils.ApiClient.forgotPassword(email,
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object response) {
+                    android.util.Log.d("ForgotPassword", "✅ Reset code sent via API");
+                    
+                    runOnUiThread(() -> {
+                        com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                        
+                        // Store email for password reset step
+                        userEmail = email;
+                        
+                        // Show success message
+                        Toast.makeText(ForgotPasswordActivity.this, "✅ Reset code sent to your email", Toast.LENGTH_SHORT).show();
+                        
+                        // Navigate to email verification screen for password reset
+                        Intent intent = new Intent(ForgotPasswordActivity.this, EmailVerificationActivity.class);
+                        intent.putExtra("email", email);
+                        intent.putExtra("type", "reset_password");
+                        startActivity(intent);
+                        finish();
+                    });
+                }
                 
-                runOnUiThread(() -> {
-                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("ForgotPassword", "❌ Failed to send reset code: " + errorMessage);
                     
-                    if (user == null) {
-                        showError("No account found with this email address");
-                        return;
-                    }
-                    
-                    // Navigate to email verification screen for password reset
-                    Intent intent = new Intent(ForgotPasswordActivity.this, EmailVerificationActivity.class);
-                    intent.putExtra("email", email);
-                    intent.putExtra("type", "reset_password");
-                    startActivity(intent);
-                    finish();
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
-                    showError("Error: " + e.getMessage());
-                });
-            }
-        });
+                    runOnUiThread(() -> {
+                        com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                        
+                        if (errorMessage.contains("not found")) {
+                            showError("No account found with this email address");
+                        } else {
+                            showError("Failed to send reset code: " + errorMessage);
+                        }
+                    });
+                }
+            });
     }
     
     private void resetPassword() {
@@ -138,11 +153,6 @@ public class ForgotPasswordActivity extends BaseActivity {
             return;
         }
         
-        if (!code.equals(generatedCode)) {
-            showError("Invalid reset code. Please check and try again.");
-            return;
-        }
-        
         // Strict password validation
         String passwordError = validateStrongPassword(newPassword);
         if (passwordError != null) {
@@ -156,93 +166,60 @@ public class ForgotPasswordActivity extends BaseActivity {
         }
         
         hideError();
+        
+        // ✅ PURE ONLINE: Check internet first
+        com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
+            new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
+        
+        if (!networkMonitor.isNetworkAvailable()) {
+            android.util.Log.e("ForgotPassword", "❌ No internet connection");
+            showError("No internet connection. Please check your connection and try again.");
+            return;
+        }
+        
         showLoading(true);
         
-        // Verify code from database and check expiry
-        Executors.newSingleThreadExecutor().execute(() -> {
-            User user = database.userDao().getUserByEmail(userEmail);
-            
-            if (user == null) {
-                runOnUiThread(() -> {
-                    showLoading(false);
-                    showError("User not found");
-                });
-                return;
-            }
-            
-            // Check if code matches
-            if (!generatedCode.equals(user.getResetCode())) {
-                runOnUiThread(() -> {
-                    showLoading(false);
-                    showError("Invalid reset code");
-                });
-                return;
-            }
-            
-            // Check if code is expired
-            long currentTime = System.currentTimeMillis();
-            if (currentTime > user.getResetCodeExpiry()) {
-                runOnUiThread(() -> {
-                    showLoading(false);
-                    showError("Reset code has expired. Please request a new one.");
-                });
-                return;
-            }
-            
-            // Hash the new password
-            String hashedPassword = hashPassword(newPassword);
-            
-            // Update password in database
-            android.util.Log.d("ForgotPassword", "Resetting password for email: " + userEmail);
-            android.util.Log.d("ForgotPassword", "New hashed password: " + hashedPassword);
-            database.userDao().resetPassword(userEmail, hashedPassword);
-            
-            // Verify the update
-            User updatedUser = database.userDao().getUserByEmail(userEmail);
-            if (updatedUser != null) {
-                android.util.Log.d("ForgotPassword", "✅ Password updated in database!");
-                android.util.Log.d("ForgotPassword", "Username: " + updatedUser.getUsername());
-                android.util.Log.d("ForgotPassword", "New password hash: " + updatedUser.getPassword());
-            } else {
-                android.util.Log.e("ForgotPassword", "❌ User not found after update!");
-            }
-            
-            runOnUiThread(() -> {
-                showLoading(false);
+        // Online - reset password via API
+        android.util.Log.d("ForgotPassword", "🌐 Resetting password via API for email: " + userEmail);
+        
+        com.example.blottermanagementsystem.utils.ApiClient.resetPassword(userEmail, code, newPassword,
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object response) {
+                    android.util.Log.d("ForgotPassword", "✅ Password reset successfully via API");
+                    
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        
+                        Toast.makeText(ForgotPasswordActivity.this, "✅ Password reset successfully!", Toast.LENGTH_SHORT).show();
+                        
+                        // Navigate back to login
+                        Intent intent = new Intent(ForgotPasswordActivity.this, LoginActivity.class);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        startActivity(intent);
+                        finish();
+                    });
+                }
                 
-                // Navigate back to login
-                Intent intent = new Intent(this, LoginActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
-                finish();
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("ForgotPassword", "❌ Failed to reset password: " + errorMessage);
+                    
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        
+                        if (errorMessage.contains("expired")) {
+                            showError("Reset code has expired. Please request a new one.");
+                        } else if (errorMessage.contains("Invalid")) {
+                            showError("Invalid reset code. Please check and try again.");
+                        } else {
+                            showError("Failed to reset password: " + errorMessage);
+                        }
+                    });
+                }
             });
-        });
     }
     
-    private String generateResetCode() {
-        Random random = new Random();
-        int code = 100000 + random.nextInt(900000); // 6-digit code
-        return String.valueOf(code);
-    }
-    
-    private String hashPassword(String password) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(password.getBytes("UTF-8"));
-            StringBuilder hexString = new StringBuilder();
-            
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
-            }
-            
-            return hexString.toString();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return password; // Fallback to plain text (not recommended)
-        }
-    }
     
     private void showResetCodeStep() {
         // Hide email step
@@ -353,48 +330,12 @@ public class ForgotPasswordActivity extends BaseActivity {
     
     /**
      * Start countdown timer for code expiry
+     * Note: This method is kept for potential future use with countdown display
+     * Currently, the backend handles code expiry validation
      */
     private void startCountdownTimer() {
-        if (countdownHandler == null) {
-            countdownHandler = new android.os.Handler();
-        }
-        
-        countdownRunnable = new Runnable() {
-            @Override
-            public void run() {
-                long remainingTime = codeExpiryTime - System.currentTimeMillis();
-                
-                if (remainingTime <= 0) {
-                    // Code expired
-                    tvCodeExpiry.setText("Code expired");
-                    tvCodeExpiry.setTextColor(0xFFef4444); // Red
-                    return;
-                }
-                
-                // Calculate minutes and seconds
-                long minutes = (remainingTime / 1000) / 60;
-                long seconds = (remainingTime / 1000) % 60;
-                
-                // Update UI
-                String timeText = String.format("Expires in %d:%02d", minutes, seconds);
-                tvCodeExpiry.setText(timeText);
-                
-                // Change color based on time remaining
-                if (minutes < 2) {
-                    tvCodeExpiry.setTextColor(0xFFef4444); // Red if less than 2 minutes
-                } else if (minutes < 3) {
-                    tvCodeExpiry.setTextColor(0xFFfbbf24); // Yellow/Orange if less than 3 minutes
-                } else {
-                    tvCodeExpiry.setTextColor(0xFF10b981); // Green if 3+ minutes
-                }
-                
-                // Schedule next update in 1 second
-                countdownHandler.postDelayed(this, 1000);
-            }
-        };
-        
-        // Start the countdown
-        countdownHandler.post(countdownRunnable);
+        // Placeholder for future countdown implementation
+        // Backend now handles reset code expiry validation
     }
     
     @Override

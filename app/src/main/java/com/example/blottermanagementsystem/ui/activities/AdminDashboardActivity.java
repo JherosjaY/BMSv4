@@ -10,14 +10,13 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
-import java.util.concurrent.Executors;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
 
 public class AdminDashboardActivity extends BaseActivity {
     
     private PreferencesManager preferencesManager;
-    private BlotterDatabase database;
+    private NetworkMonitor networkMonitor;
     private TextView tvTotalUsers, tvTotalOfficers, tvTotalReports, tvPendingReports;
     private TextView tvNotificationBadge;
     private ImageButton btnNotifications, btnProfile;
@@ -32,7 +31,7 @@ public class AdminDashboardActivity extends BaseActivity {
         setContentView(R.layout.activity_admin_dashboard);
         
         preferencesManager = new PreferencesManager(this);
-        database = BlotterDatabase.getDatabase(this);
+        networkMonitor = new NetworkMonitor(this);
         
         initViews();
         setupListeners();
@@ -234,29 +233,47 @@ public class AdminDashboardActivity extends BaseActivity {
     }
     
     private void loadDashboardQuietly() {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                int totalUsers = database.userDao().getTotalUserCount();
-                int totalOfficers = database.officerDao().getAllOfficers().size();
-                int totalReports = database.blotterReportDao().getAllReports().size();
-                int pendingReports = database.blotterReportDao().getReportsByStatus("Pending").size();
-                int unreadNotifications = database.notificationDao()
-                    .getUnreadNotificationsForUser(preferencesManager.getUserId()).size();
-                
-                // Only update UI if values changed
-                if (hasStatisticsChanged(totalUsers, totalOfficers, totalReports, pendingReports, unreadNotifications)) {
-                    runOnUiThread(() -> {
-                        tvTotalUsers.setText(String.valueOf(totalUsers));
-                        tvTotalOfficers.setText(String.valueOf(totalOfficers));
-                        tvTotalReports.setText(String.valueOf(totalReports));
-                        tvPendingReports.setText(String.valueOf(pendingReports));
-                        updateNotificationBadge(unreadNotifications);
-                    });
+        // Load from API quietly (no loading dialog)
+        com.example.blottermanagementsystem.utils.ApiClient.getAdminStatistics(
+            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object statsObj) {
+                    try {
+                        // Extract statistics from response
+                        int totalUsers = 0, totalOfficers = 0, totalReports = 0, pendingReports = 0;
+                        
+                        if (statsObj instanceof java.util.Map) {
+                            java.util.Map<String, Object> stats = (java.util.Map<String, Object>) statsObj;
+                            totalUsers = ((Number) stats.getOrDefault("totalUsers", 0)).intValue();
+                            totalOfficers = ((Number) stats.getOrDefault("totalOfficers", 0)).intValue();
+                            totalReports = ((Number) stats.getOrDefault("totalReports", 0)).intValue();
+                            pendingReports = ((Number) stats.getOrDefault("pendingReports", 0)).intValue();
+                        }
+                        
+                        final int finalUsers = totalUsers;
+                        final int finalOfficers = totalOfficers;
+                        final int finalReports = totalReports;
+                        final int finalPending = pendingReports;
+                        
+                        // Only update UI if values changed
+                        if (hasStatisticsChanged(finalUsers, finalOfficers, finalReports, finalPending, 0)) {
+                            runOnUiThread(() -> {
+                                tvTotalUsers.setText(String.valueOf(finalUsers));
+                                tvTotalOfficers.setText(String.valueOf(finalOfficers));
+                                tvTotalReports.setText(String.valueOf(finalReports));
+                                tvPendingReports.setText(String.valueOf(finalPending));
+                            });
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.e("AdminDashboard", "Error in quiet refresh: " + e.getMessage());
+                    }
                 }
-            } catch (Exception e) {
-                android.util.Log.e("AdminDashboard", "Error in quiet refresh: " + e.getMessage());
-            }
-        });
+                
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.w("AdminDashboard", "Error in quiet refresh: " + errorMessage);
+                }
+            });
     }
     
     private int lastTotalUsers = -1, lastTotalOfficers = -1, lastTotalReports = -1, lastPendingReports = -1, lastUnreadNotifications = -1;

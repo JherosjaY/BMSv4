@@ -44,6 +44,9 @@ public class Hearing {
     // ✅ Presiding officer field
     private String presidingOfficer; // Name of the officer presiding over the hearing
     
+    // ✅ User ID field for API integration
+    private String userId; // UUID of the user who created the hearing
+    
     public Hearing() {
         this.status = "Scheduled";
         this.approvalStatus = "PENDING"; // Default to pending approval
@@ -103,6 +106,10 @@ public class Hearing {
     // ✅ Presiding officer getters and setters
     public String getPresidingOfficer() { return presidingOfficer; }
     public void setPresidingOfficer(String presidingOfficer) { this.presidingOfficer = presidingOfficer; }
+    
+    // ✅ User ID getters and setters
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
     
     // ✅ Helper method to check if hearing is completed or cancelled
     public boolean isHearingCompleted() {

@@ -12,12 +12,18 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.DialogFragment;
 
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
 import com.example.blottermanagementsystem.data.entity.Hearing;
 import com.example.blottermanagementsystem.utils.NotificationHelper;
 import com.example.blottermanagementsystem.utils.HearingReminderManager;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import com.google.android.material.button.MaterialButton;
-
+import com.example.blottermanagementsystem.data.database.BlotterDatabase;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 /**
@@ -30,6 +36,7 @@ public class EditHearingDialogFragment extends DialogFragment {
     private MaterialButton btnSave, btnCancel;
     private Hearing hearing;
     private OnHearingUpdatedListener listener;
+    private NetworkMonitor networkMonitor;
 
     public interface OnHearingUpdatedListener {
         void onHearingUpdated(Hearing hearing);
@@ -46,6 +53,7 @@ public class EditHearingDialogFragment extends DialogFragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Material_Dialog_MinWidth);
+        networkMonitor = new NetworkMonitor(getContext());
     }
 
     @Override

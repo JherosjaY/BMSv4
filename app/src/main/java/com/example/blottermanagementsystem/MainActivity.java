@@ -5,8 +5,8 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.splashscreen.SplashScreen;
-import com.example.blottermanagementsystem.data.database.BlotterDatabase;
-import com.example.blottermanagementsystem.data.entity.User;
+import com.example.blottermanagementsystem.utils.NetworkMonitor;
+import com.example.blottermanagementsystem.utils.ApiClient;
 import com.example.blottermanagementsystem.ui.activities.BaseActivity;
 import com.example.blottermanagementsystem.ui.activities.OnboardingActivity;
 import com.example.blottermanagementsystem.ui.activities.AdminDashboardActivity;
@@ -14,12 +14,11 @@ import com.example.blottermanagementsystem.ui.activities.OfficerDashboardActivit
 import com.example.blottermanagementsystem.ui.activities.UserDashboardActivity;
 import com.example.blottermanagementsystem.ui.activities.ProfilePictureSelectionActivity;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
-import java.util.concurrent.Executors;
 
 public class MainActivity extends BaseActivity {
     
     private PreferencesManager preferencesManager;
-    private BlotterDatabase database;
+    private NetworkMonitor networkMonitor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,8 +28,7 @@ public class MainActivity extends BaseActivity {
         android.util.Log.d("MainActivity", "🚀 MainActivity started - routing to appropriate screen");
         
         preferencesManager = new PreferencesManager(this);
-        database = BlotterDatabase.getDatabase(this);
-        createAdminAccountIfNotExists();
+        networkMonitor = new NetworkMonitor(this);
         
         // CRITICAL FIX: On first launch after clear data, ensure flags are properly initialized
         boolean isOnboardingCompleted = preferencesManager.isOnboardingCompleted();
@@ -105,143 +103,49 @@ public class MainActivity extends BaseActivity {
         }
     }
     
-    // ✅ NEW METHOD: Check profile completion status from database
+    // ✅ PURE ONLINE: Check profile completion status from preferences
     private void checkProfileCompletionAndNavigate() {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                int userId = preferencesManager.getUserId();
-                android.util.Log.d("MainActivity", "🔍 Checking profile for userId: " + userId);
-                
-                User user = database.userDao().getUserById(userId);
-                
-                if (user == null) {
-                    android.util.Log.e("MainActivity", "❌ User not found in database!");
-                    runOnUiThread(() -> {
-                        startActivity(new Intent(this, com.example.blottermanagementsystem.ui.activities.WelcomeActivity.class));
-                        finish();
-                    });
-                    return;
-                }
-                
-                // ✅ Check if profile is completed in database
-                boolean isProfileCompleted = user.isProfileCompleted();
-                String firstName = user.getFirstName();
-                String lastName = user.getLastName();
-                String profilePhotoUri = user.getProfilePhotoUri();
-                
-                android.util.Log.d("MainActivity", "📋 Profile Status:");
-                android.util.Log.d("MainActivity", "   - isProfileCompleted: " + isProfileCompleted);
-                android.util.Log.d("MainActivity", "   - FirstName: " + firstName);
-                android.util.Log.d("MainActivity", "   - LastName: " + lastName);
-                android.util.Log.d("MainActivity", "   - ProfilePhotoUri: " + (profilePhotoUri != null ? "✅ Set" : "❌ Not set"));
-                
-                // Update preferences to match database state
-                if (isProfileCompleted) {
-                    preferencesManager.setHasSelectedProfilePicture(true);
-                    preferencesManager.setFirstName(firstName);
-                    preferencesManager.setLastName(lastName);
-                    android.util.Log.d("MainActivity", "✅ Profile is completed - syncing to preferences");
-                }
-                
-                // Navigate on UI thread
-                runOnUiThread(() -> {
-                    Intent intent;
-                    if (!isProfileCompleted) {
-                        android.util.Log.d("MainActivity", "🖼️ PROFILE NOT COMPLETED - Going to ProfilePictureSelectionActivity");
-                        intent = new Intent(this, ProfilePictureSelectionActivity.class);
-                        intent.putExtra("USER_ID", userId);  // Pass userId to ensure it's available
-                    } else {
-                        android.util.Log.d("MainActivity", "✅ PROFILE COMPLETED - Going to UserDashboardActivity");
-                        intent = new Intent(this, UserDashboardActivity.class);
-                    }
-                    startActivity(intent);
-                    finish();
-                });
-            } catch (Exception e) {
-                android.util.Log.e("MainActivity", "Error checking profile completion: " + e.getMessage());
-                e.printStackTrace();
-                // Fallback: go to dashboard
-                runOnUiThread(() -> {
-                    startActivity(new Intent(this, UserDashboardActivity.class));
-                    finish();
-                });
-            }
-        });
+        String userId = preferencesManager.getUserId();
+        boolean isProfileCompleted = preferencesManager.hasSelectedProfilePicture();
+        
+        android.util.Log.d("MainActivity", "🔍 Checking profile for userId: " + userId);
+        android.util.Log.d("MainActivity", "📋 Profile Status: isProfileCompleted=" + isProfileCompleted);
+        
+        Intent intent;
+        if (!isProfileCompleted) {
+            android.util.Log.d("MainActivity", "🖼️ PROFILE NOT COMPLETED - Going to ProfilePictureSelectionActivity");
+            intent = new Intent(this, ProfilePictureSelectionActivity.class);
+            intent.putExtra("USER_ID", userId);
+        } else {
+            android.util.Log.d("MainActivity", "✅ PROFILE COMPLETED - Going to UserDashboardActivity");
+            intent = new Intent(this, UserDashboardActivity.class);
+        }
+        startActivity(intent);
+        finish();
     }
     
     private void checkProfilePictureAndNavigate() {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            try {
-                int userId = preferencesManager.getUserId();
-                User user = database.userDao().getUserById(userId);
-                boolean hasProfilePhotoInDb = user != null && user.getProfilePhotoUri() != null && !user.getProfilePhotoUri().isEmpty();
-                
-                // If user has profile photo in DB, set the flag to true
-                if (hasProfilePhotoInDb) {
-                    preferencesManager.setHasSelectedProfilePicture(true);
-                    android.util.Log.d("MainActivity", "✅ User has profile photo in DB, setting flag to TRUE");
-                }
-                
-                boolean hasSelectedPfp = preferencesManager.hasSelectedProfilePicture();
-                android.util.Log.d("MainActivity", "User hasSelectedProfilePicture: " + hasSelectedPfp);
-                
-                // Navigate on UI thread
-                runOnUiThread(() -> {
-                    Intent intent;
-                    if (!hasSelectedPfp) {
-                        android.util.Log.d("MainActivity", "→ Going to ProfilePictureSelectionActivity");
-                        intent = new Intent(this, ProfilePictureSelectionActivity.class);
-                    } else {
-                        android.util.Log.d("MainActivity", "→ Going to UserDashboardActivity");
-                        intent = new Intent(this, UserDashboardActivity.class);
-                    }
-                    startActivity(intent);
-                    finish();
-                });
-            } catch (Exception e) {
-                android.util.Log.e("MainActivity", "Error checking profile picture: " + e.getMessage());
-                e.printStackTrace();
-                // Fallback: go to dashboard
-                runOnUiThread(() -> {
-                    startActivity(new Intent(this, UserDashboardActivity.class));
-                    finish();
-                });
-            }
-        });
+        boolean hasSelectedPfp = preferencesManager.hasSelectedProfilePicture();
+        android.util.Log.d("MainActivity", "User hasSelectedProfilePicture: " + hasSelectedPfp);
+        
+        Intent intent;
+        if (!hasSelectedPfp) {
+            android.util.Log.d("MainActivity", "→ Going to ProfilePictureSelectionActivity");
+            intent = new Intent(this, ProfilePictureSelectionActivity.class);
+        } else {
+            android.util.Log.d("MainActivity", "→ Going to UserDashboardActivity");
+            intent = new Intent(this, UserDashboardActivity.class);
+        }
+        startActivity(intent);
+        finish();
     }
     
+    // ✅ PURE ONLINE: Admin account creation is handled by backend
+    // No need to create admin locally - backend handles this
     private void createAdminAccountIfNotExists() {
-        Executors.newSingleThreadExecutor().execute(() -> {
-            // Check if admin account exists (new username)
-            User existingAdmin = database.userDao().getUserByUsername("official.bms.admin");
-            
-            // Also check for old username for migration
-            User oldAdmin = database.userDao().getUserByUsername("admin");
-            
-            if (existingAdmin == null && oldAdmin == null) {
-                // Create built-in admin account with hashed password using SecurityUtils
-                String hashedPassword = com.example.blottermanagementsystem.utils.SecurityUtils.hashPassword("@BMSOFFICIAL2025");
-                User admin = new User("System", "Administrator", "official.bms.admin", hashedPassword, "Admin");
-                admin.setActive(true);
-                database.userDao().insertUser(admin);
-                android.util.Log.d("MainActivity", "✅ Default admin account created: official.bms.admin/@BMSOFFICIAL2025");
-            } else if (existingAdmin == null && oldAdmin != null) {
-                // Migrate old admin account to new username
-                String hashedPassword = com.example.blottermanagementsystem.utils.SecurityUtils.hashPassword("@BMSOFFICIAL2025");
-                oldAdmin.setUsername("official.bms.admin");
-                oldAdmin.setPassword(hashedPassword);
-                database.userDao().updateUser(oldAdmin);
-                android.util.Log.d("MainActivity", "✅ Admin account migrated to new username: official.bms.admin/@BMSOFFICIAL2025");
-            } else {
-                // Admin account exists with new username - update password if needed
-                String hashedPassword = com.example.blottermanagementsystem.utils.SecurityUtils.hashPassword("@BMSOFFICIAL2025");
-                if (!existingAdmin.getPassword().equals(hashedPassword)) {
-                    existingAdmin.setPassword(hashedPassword);
-                    database.userDao().updateUser(existingAdmin);
-                    android.util.Log.d("MainActivity", "✅ Admin password updated to: @BMSOFFICIAL2025");
-                }
-            }
-        });
+        // Admin account creation is managed by backend API
+        // This method is kept for compatibility but does nothing
+        android.util.Log.d("MainActivity", "✅ Admin account management delegated to backend");
     }
     
     // ✅ Using SecurityUtils.hashPassword() instead of local implementation for consistency
