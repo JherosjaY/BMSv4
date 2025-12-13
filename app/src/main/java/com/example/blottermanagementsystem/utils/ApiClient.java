@@ -8,6 +8,10 @@ import com.example.blottermanagementsystem.data.entity.BlotterReport;
 import java.util.List;
 
 /**
+ * Import LoginResponse from utils package
+ */
+
+/**
  * ApiClient Wrapper - For backward compatibility
  * Delegates to com.example.blottermanagementsystem.data.api.ApiClient
  */
@@ -60,35 +64,6 @@ public class ApiClient {
             });
     }
     
-    /**
-     * Login user
-     */
-    @SuppressWarnings("unchecked")
-    public static void login(String username, String password, ApiCallback<Object> callback) {
-        com.example.blottermanagementsystem.data.api.ApiClient.login(username, password, 
-            (com.example.blottermanagementsystem.data.api.ApiClient.ApiCallback) 
-            new com.example.blottermanagementsystem.data.api.ApiClient.ApiCallback() {
-                @Override
-                public void onSuccess(Object result) { 
-                    callback.onSuccess(result); 
-                }
-                @Override
-                public void onError(String errorMessage) { callback.onError(errorMessage); }
-            });
-    }
-    
-    /**
-     * Register user
-     */
-    public static void register(String username, String email, String password, String confirmPassword, ApiCallback<Object> callback) {
-        com.example.blottermanagementsystem.data.api.ApiClient.register(username, email, password, confirmPassword,
-            new com.example.blottermanagementsystem.data.api.ApiClient.ApiCallback<Object>() {
-                @Override
-                public void onSuccess(Object result) { callback.onSuccess(result); }
-                @Override
-                public void onError(String errorMessage) { callback.onError(errorMessage); }
-            });
-    }
     
     /**
      * Create a new report
@@ -244,43 +219,6 @@ public class ApiClient {
                 @Override
                 public void onError(String errorMessage) { callback.onError(errorMessage); }
             });
-    }
-    
-    /**
-     * Google sign in
-     */
-    public static void googleSignIn(String email, String displayName, String photoUrl, ApiCallback<Object> callback) {
-        try {
-            java.util.Map<String, String> body = new java.util.HashMap<>();
-            body.put("email", email);
-            if (displayName != null && !displayName.isEmpty()) {
-                body.put("displayName", displayName);
-            }
-            if (photoUrl != null && !photoUrl.isEmpty()) {
-                body.put("photoUrl", photoUrl);
-            }
-            
-            // Call the API directly
-            @SuppressWarnings("unchecked")
-            retrofit2.Call<Object> call = (retrofit2.Call<Object>) (Object) getApiService().googleSignIn(body);
-            call.enqueue(new retrofit2.Callback<Object>() {
-                @Override
-                public void onResponse(retrofit2.Call<Object> call, retrofit2.Response<Object> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        callback.onSuccess(response.body());
-                    } else {
-                        callback.onError("Error: " + response.code());
-                    }
-                }
-
-                @Override
-                public void onFailure(retrofit2.Call<Object> call, Throwable t) {
-                    callback.onError("Network error: " + t.getMessage());
-                }
-            });
-        } catch (Exception e) {
-            callback.onError("Exception: " + e.getMessage());
-        }
     }
     
     /**
@@ -514,6 +452,19 @@ public class ApiClient {
                 callback.onError("Network error: " + t.getMessage());
             }
         });
+    }
+
+    /**
+     * Upload profile picture to Cloudinary
+     */
+    public static void uploadProfilePicture(String base64Image, ApiCallback<Object> callback) {
+        com.example.blottermanagementsystem.data.api.ApiClient.uploadProfilePicture(base64Image,
+            new com.example.blottermanagementsystem.data.api.ApiClient.ApiCallback<Object>() {
+                @Override
+                public void onSuccess(Object result) { callback.onSuccess(result); }
+                @Override
+                public void onError(String errorMessage) { callback.onError(errorMessage); }
+            });
     }
 
     /**

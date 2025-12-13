@@ -91,27 +91,6 @@ public interface BlotterApiService {
         }
     }
     
-    class RegisterRequest {
-        public String username;
-        public String password;
-        public String firstName;
-        public String lastName;
-        public String email;
-        public String phoneNumber;
-        public String role;
-        
-        public RegisterRequest(String username, String password, String firstName, 
-                             String lastName, String email, String phoneNumber, String role) {
-            this.username = username;
-            this.password = password;
-            this.firstName = firstName;
-            this.lastName = lastName;
-            this.email = email;
-            this.phoneNumber = phoneNumber;
-            this.role = role;
-        }
-    }
-    
     class LoginData {
         public User user;
         public String token;

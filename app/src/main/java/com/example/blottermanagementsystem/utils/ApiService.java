@@ -36,13 +36,6 @@ public interface ApiService {
     Call<VerifyEmailResponse> verifyEmail(@Body java.util.Map<String, String> body);
     
     /**
-     * Login user
-     * POST /api/auth/login
-     */
-    @POST("api/auth/login")
-    Call<LoginResponse> login(@Body LoginRequest loginRequest);
-    
-    /**
      * Register user
      * POST /api/auth/register
      */

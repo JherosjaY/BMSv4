@@ -4,6 +4,7 @@ import android.util.Log;
 import com.example.blottermanagementsystem.data.api.ApiConfig;
 import com.example.blottermanagementsystem.data.api.ApiResponse;
 import com.example.blottermanagementsystem.data.api.BlotterApiService;
+import com.example.blottermanagementsystem.data.api.RegisterRequest;
 import com.example.blottermanagementsystem.data.entity.BlotterReport;
 import com.example.blottermanagementsystem.data.entity.User;
 import com.example.blottermanagementsystem.data.entity.Officer;
@@ -49,9 +50,8 @@ public class ApiRepository {
     }
     
     public void register(User user, String password, ApiCallback<BlotterApiService.LoginData> callback) {
-        BlotterApiService.RegisterRequest request = new BlotterApiService.RegisterRequest(
-            user.getUsername(), password, user.getFirstName(), user.getLastName(),
-            user.getEmail(), user.getPhoneNumber(), user.getRole()
+        RegisterRequest request = new RegisterRequest(
+            user.getUsername(), user.getEmail(), password, password
         );
         
         apiService.register(request).enqueue(new Callback<ApiResponse<BlotterApiService.LoginData>>() {

@@ -96,47 +96,45 @@ public class ApiClient {
     }
     
     /**
-     * Login user
+     * Register user with profile image URL
      */
-    public static void login(String username, String password, ApiCallback<LoginResponse> callback) {
+    public static void register(String username, String email, String password, String confirmPassword, String firstName, String lastName, String profileImageUrl, ApiCallback<Object> callback) {
         try {
-            LoginRequest loginRequest = new LoginRequest(username, password);
-            getApiService().login(loginRequest).enqueue(new Callback<LoginResponse>() {
+            RegisterRequest registerRequest = new RegisterRequest(username, email, password, confirmPassword, firstName, lastName);
+            registerRequest.profilePhoto = profileImageUrl; // Add profile image URL to request
+            
+            getApiService().register(registerRequest).enqueue(new Callback<RegisterResponse>() {
                 @Override
-                public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        LoginResponse loginResponse = response.body();
-                        if (loginResponse.success && loginResponse.data != null) {
-                            Log.d(TAG, "✅ Login successful - User ID: " + loginResponse.data.user.getId());
-                            callback.onSuccess(loginResponse);
-                        } else {
-                            Log.e(TAG, "❌ Login failed: " + loginResponse.message);
-                            callback.onError(loginResponse.message);
-                        }
+                public void onResponse(Call<RegisterResponse> call, Response<RegisterResponse> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
                     } else {
-                        Log.e(TAG, "❌ Error logging in: " + response.code());
                         callback.onError("Error: " + response.code());
                     }
                 }
-                
                 @Override
-                public void onFailure(Call<LoginResponse> call, Throwable t) {
-                    Log.e(TAG, "❌ Network error: " + t.getMessage(), t);
+                public void onFailure(Call<RegisterResponse> call, Throwable t) {
                     callback.onError("Network error: " + t.getMessage());
                 }
             });
         } catch (Exception e) {
-            Log.e(TAG, "❌ Exception: " + e.getMessage(), e);
             callback.onError("Exception: " + e.getMessage());
         }
     }
-    
+
     /**
-     * Register user
+     * Register user (legacy, without profile image)
      */
-    public static void register(String username, String email, String password, String confirmPassword, ApiCallback<Object> callback) {
+    public static void register(String username, String email, String password, String confirmPassword, String firstName, String lastName, ApiCallback<Object> callback) {
+        register(username, email, password, confirmPassword, firstName, lastName, null, callback);
+    }
+
+    /**
+     * Register user (old implementation - kept for reference)
+     */
+    private static void registerOld(String username, String email, String password, String confirmPassword, String firstName, String lastName, ApiCallback<Object> callback) {
         try {
-            RegisterRequest registerRequest = new RegisterRequest(username, email, password, confirmPassword);
+            RegisterRequest registerRequest = new RegisterRequest(username, email, password, confirmPassword, firstName, lastName);
             
             getApiService().register(registerRequest).enqueue(new Callback<RegisterResponse>() {
                 @Override
@@ -151,8 +149,20 @@ public class ApiClient {
                             callback.onError(registerResponse.message);
                         }
                     } else {
-                        Log.e(TAG, "❌ Error registering: " + response.code());
-                        callback.onError("Error: " + response.code());
+                        String errorMsg = "Error: " + response.code();
+                        try {
+                            if (response.errorBody() != null) {
+                                String errorJson = response.errorBody().string();
+                                com.google.gson.JsonObject errorObj = new com.google.gson.JsonParser().parse(errorJson).getAsJsonObject();
+                                if (errorObj.has("message")) {
+                                    errorMsg = errorObj.get("message").getAsString();
+                                }
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "❌ Error parsing backend error message: " + e.getMessage());
+                        }
+                        Log.e(TAG, "❌ Error registering: " + errorMsg);
+                        callback.onError(errorMsg);
                     }
                 }
                 
@@ -354,50 +364,6 @@ public class ApiClient {
                 
                 @Override
                 public void onFailure(Call<BlotterReport> call, Throwable t) {
-                    Log.e(TAG, "❌ Network error: " + t.getMessage(), t);
-                    callback.onError("Network error: " + t.getMessage());
-                }
-            });
-        } catch (Exception e) {
-            Log.e(TAG, "❌ Exception: " + e.getMessage(), e);
-            callback.onError("Exception: " + e.getMessage());
-        }
-    }
-    
-    /**
-     * Google Sign-In
-     */
-    public static void googleSignIn(String email, String displayName, String photoUrl, ApiCallback<LoginResponse> callback) {
-        try {
-            java.util.Map<String, String> body = new java.util.HashMap<>();
-            body.put("email", email);
-            if (displayName != null && !displayName.isEmpty()) {
-                body.put("displayName", displayName);
-            }
-            if (photoUrl != null && !photoUrl.isEmpty()) {
-                body.put("photoUrl", photoUrl);
-            }
-            
-            getApiService().googleSignIn(body).enqueue(new Callback<LoginResponse>() {
-                @Override
-                public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        LoginResponse loginResponse = response.body();
-                        if (loginResponse.success && loginResponse.data != null) {
-                            Log.d(TAG, "✅ Google Sign-In successful - User ID: " + loginResponse.data.user.getId());
-                            callback.onSuccess(loginResponse);
-                        } else {
-                            Log.e(TAG, "❌ Google Sign-In failed: " + loginResponse.message);
-                            callback.onError(loginResponse.message);
-                        }
-                    } else {
-                        Log.e(TAG, "❌ Error with Google Sign-In: " + response.code());
-                        callback.onError("Error: " + response.code());
-                    }
-                }
-                
-                @Override
-                public void onFailure(Call<LoginResponse> call, Throwable t) {
                     Log.e(TAG, "❌ Network error: " + t.getMessage(), t);
                     callback.onError("Network error: " + t.getMessage());
                 }
@@ -925,6 +891,33 @@ public class ApiClient {
                 }
                 @Override
                 public void onFailure(Call<java.util.List<com.example.blottermanagementsystem.data.entity.BlotterReport>> call, Throwable t) {
+                    callback.onError("Network error: " + t.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            callback.onError("Exception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Upload profile picture to Cloudinary
+     */
+    public static void uploadProfilePicture(String base64Image, ApiCallback<Object> callback) {
+        try {
+            java.util.Map<String, String> body = new java.util.HashMap<>();
+            body.put("imageBase64", base64Image);
+            
+            getApiService().uploadProfilePicture(body).enqueue(new Callback<Object>() {
+                @Override
+                public void onResponse(Call<Object> call, Response<Object> response) {
+                    if (response.isSuccessful()) {
+                        callback.onSuccess(response.body());
+                    } else {
+                        callback.onError("Upload failed: " + response.code());
+                    }
+                }
+                @Override
+                public void onFailure(Call<Object> call, Throwable t) {
                     callback.onError("Network error: " + t.getMessage());
                 }
             });

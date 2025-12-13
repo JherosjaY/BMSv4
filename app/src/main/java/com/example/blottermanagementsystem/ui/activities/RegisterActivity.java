@@ -21,9 +21,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.blottermanagementsystem.R;
-import com.example.blottermanagementsystem.data.entity.User;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
-import com.example.blottermanagementsystem.viewmodel.AuthViewModel;
+import com.example.blottermanagementsystem.utils.NeonAuthManager;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -39,23 +38,23 @@ public class RegisterActivity extends BaseActivity {
     private MaterialButton btnRegister;
     private TextView tvError, tvLogin;
     private ProgressBar progressBar;
-    private AuthViewModel authViewModel;
+    private NeonAuthManager neonAuthManager;
     private GoogleSignInClient googleSignInClient;
     private ActivityResultLauncher<Intent> googleSignInLauncher;
     private PreferencesManager preferencesManager;
+    private boolean isRegistering = false; // Prevent duplicate submissions
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
         
-        // ✅ Initialize API Client
-        com.example.blottermanagementsystem.data.api.ApiClient.initApiClient(this);
-        
+        // Initialize ApiClient for all API calls
+        com.example.blottermanagementsystem.data.api.ApiClient.initApiClient(getApplicationContext());
         preferencesManager = new PreferencesManager(this);
+        neonAuthManager = new NeonAuthManager(this);
         setupGoogleSignIn();
         initViews();
-        setupViewModel();
         setupListeners();
         animateViews();
     }
@@ -73,7 +72,7 @@ public class RegisterActivity extends BaseActivity {
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
                 Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(result.getData());
-                handleGoogleSignInResult(task);
+                // NeonAuth handles Google Sign-In now; no custom handler needed.
             }
         );
     }
@@ -89,131 +88,24 @@ public class RegisterActivity extends BaseActivity {
         progressBar = findViewById(R.id.progressBar);
     }
     
-    private void setupViewModel() {
-        authViewModel = new ViewModelProvider(this).get(AuthViewModel.class);
-        
-        // Observe registerState instead of authState for registration
-        authViewModel.getRegisterState().observe(this, authState -> {
-            if (authState == AuthViewModel.AuthState.LOADING) {
-                showLoading(true);
-            } else if (authState == AuthViewModel.AuthState.SUCCESS) {
-                showLoading(false);
-                // ✅ Navigation handled in attemptApiRegister callback
-            } else if (authState == AuthViewModel.AuthState.EMAIL_EXISTS) {
-                showLoading(false);
-                showError("This email is already registered. Please use a different email or sign in.");
-            } else if (authState == AuthViewModel.AuthState.ERROR) {
-                showLoading(false);
-                showError("Registration failed. Username may already exist.");
-            } else {
-                showLoading(false);
-            }
-        });
-    }
-    
     private void setupListeners() {
         btnRegister.setOnClickListener(v -> attemptRegister());
         
         tvLogin.setOnClickListener(v -> {
             // Go back to Login screen
             Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
             finish();
         });
     }
     
-    private void handleGoogleSignInResult(Task<GoogleSignInAccount> completedTask) {
-        try {
-            GoogleSignInAccount account = completedTask.getResult(ApiException.class);
-            
-            // Get user info
-            String email = account.getEmail();
-            String displayName = account.getDisplayName();
-            String photoUrl = account.getPhotoUrl() != null ? account.getPhotoUrl().toString() : null;
-            
-            // Parse display name into first and last name
-            final String firstName;
-            final String lastName;
-            if (displayName != null && !displayName.isEmpty()) {
-                String[] nameParts = displayName.split(" ", 2);
-                firstName = nameParts[0];
-                if (nameParts.length > 1) {
-                    lastName = nameParts[1];
-                } else {
-                    lastName = "Account";
-                }
-            } else {
-                firstName = "User";
-                lastName = "Account";
-            }
-            
-            // Save Google account info
-            preferencesManager.saveGoogleAccountInfo(email, displayName, photoUrl);
-            
-            // Create User in database
-            User newUser = new User(firstName, lastName, email, "", "User");
-            newUser.setProfilePhotoUri(photoUrl); // Save Google photo
-            
-            // Register user in database using ViewModel
-            authViewModel.register(newUser);
-            
-            // Wait for registration to complete, then navigate
-            authViewModel.getRegisterState().observe(this, state -> {
-                if (state == AuthViewModel.AuthState.SUCCESS) {
-                    // Get the created user ID
-                    java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-                        com.example.blottermanagementsystem.data.database.BlotterDatabase database = 
-                            com.example.blottermanagementsystem.data.database.BlotterDatabase.getDatabase(this);
-                        User createdUser = database.userDao().getUserByUsername(email);
-                        
-                        android.util.Log.d("RegisterActivity", "=== GOOGLE SIGN-UP ===");
-                        android.util.Log.d("RegisterActivity", "Email: " + email);
-                        android.util.Log.d("RegisterActivity", "User found: " + (createdUser != null));
-                        
-                        if (createdUser != null) {
-                            int userId = createdUser.getId();
-                            android.util.Log.d("RegisterActivity", "✅ User ID: " + userId);
-                            
-                            runOnUiThread(() -> {
-                                // Save user ID and data to preferences
-                                preferencesManager.setUserId(String.valueOf(userId));
-                                preferencesManager.setLoggedIn(true);
-                                preferencesManager.setUserRole("User");
-                                preferencesManager.setFirstName(firstName);
-                                preferencesManager.setLastName(lastName);
-                                
-                                android.util.Log.d("RegisterActivity", "✅ Saved userId to preferences: " + userId);
-                                
-                                Toast.makeText(this, "Signed up with Google: " + displayName, Toast.LENGTH_SHORT).show();
-                                
-                                // Navigate to Profile Picture Selection
-                                Intent intent = new Intent(RegisterActivity.this, ProfilePictureSelectionActivity.class);
-                                startActivity(intent);
-                                finish();
-                            });
-                        } else {
-                            android.util.Log.e("RegisterActivity", "❌ User NOT found in database after registration!");
-                        }
-                    });
-                } else if (state == AuthViewModel.AuthState.EMAIL_EXISTS) {
-                    Toast.makeText(this, "This Google account is already registered. Please sign in instead.", Toast.LENGTH_LONG).show();
-                    // Navigate back to login
-                    Intent intent = new Intent(this, com.example.blottermanagementsystem.ui.activities.LoginActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent);
-                    finish();
-                } else if (state == AuthViewModel.AuthState.ERROR) {
-                    Toast.makeText(this, "Registration failed. Account may already exist.", Toast.LENGTH_SHORT).show();
-                }
-            });
-            
-        } catch (ApiException e) {
-            Toast.makeText(this, "Google Sign-Up failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
-    }
-    
     private void attemptRegister() {
+        // Prevent duplicate submissions
+        if (isRegistering) {
+            Toast.makeText(this, "Registration in progress. Please wait...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         String username = etUsernameField.getText().toString().trim();
         String email = etUsername.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
@@ -239,6 +131,7 @@ public class RegisterActivity extends BaseActivity {
         }
         
         hideError();
+        isRegistering = true;
         showLoading(true);
         
         android.util.Log.d("RegisterActivity", "=== PURE ONLINE REGISTRATION ===");
@@ -261,39 +154,40 @@ public class RegisterActivity extends BaseActivity {
         attemptApiRegister(username, email, password);
     }
     
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        isRegistering = false; // Reset flag when activity is destroyed
+    }
+    
     /**
-     * Pure Online Registration via API (Neon database only)
+     * Pure Online Registration via Neon Auth
      */
     private void attemptApiRegister(String username, String email, String password) {
-        // ✅ CALL API TO CREATE ACCOUNT IN NEON
-        com.example.blottermanagementsystem.utils.ApiClient.register(username, email, password, password,
-            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
-                @Override
-                public void onSuccess(Object response) {
-                    android.util.Log.d("RegisterActivity", "✅ API registration successful!");
-                    showLoading(false);
-                    Toast.makeText(RegisterActivity.this, "Registration successful! Please verify your email.", Toast.LENGTH_SHORT).show();
-                    
-                    // ✅ Save temp user data for EmailVerificationActivity
-                    preferencesManager.setUsername(username);
-                    preferencesManager.setTempEmail(email);
-                    preferencesManager.setTempPassword(password);
-                    
-                    // Navigate to EmailVerificationActivity
-                    Intent intent = new Intent(RegisterActivity.this, EmailVerificationActivity.class);
-                    intent.putExtra("email", email);
-                    intent.putExtra("type", "registration");
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent);
-                    finish();
-                }
-                
-                public void onError(String errorMessage) {
-                    android.util.Log.e("RegisterActivity", "❌ API registration failed: " + errorMessage);
-                    showLoading(false);
-                    showError("Registration failed: " + errorMessage);
-                }
-            });
+        android.util.Log.d("RegisterActivity", "🔐 Attempting Neon Auth registration");
+        
+        // Store registration data locally for later use
+        preferencesManager.setTempUsername(username);
+        preferencesManager.setTempEmail(email);
+        preferencesManager.setTempPassword(password);
+
+        // Send verification code to email (do NOT register user yet)
+        com.example.blottermanagementsystem.data.api.ApiClient.sendVerificationCode(email, new com.example.blottermanagementsystem.data.api.ApiClient.ApiCallback<Object>() {
+            public void onSuccess(Object result) {
+                android.util.Log.d("RegisterActivity", "✅ Verification code sent to email");
+                // Navigate to Email Verification screen
+                Intent intent = new Intent(RegisterActivity.this, EmailVerificationActivity.class);
+                intent.putExtra("email", email);
+                intent.putExtra("type", "registration");
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            }
+            public void onError(String errorMessage) {
+                showLoading(false);
+                showError("Failed to send verification code: " + errorMessage);
+            }
+        });
     }
     
     private void copyToClipboard(String label, String text) {

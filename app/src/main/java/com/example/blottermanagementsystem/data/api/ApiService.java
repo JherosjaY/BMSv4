@@ -35,12 +35,6 @@ public interface ApiService {
     @POST("api/auth/verify-email")
     Call<VerifyEmailResponse> verifyEmail(@Body java.util.Map<String, String> body);
     
-    /**
-     * Login user
-     * POST /api/auth/login
-     */
-    @POST("api/auth/login")
-    Call<LoginResponse> login(@Body LoginRequest loginRequest);
     
     /**
      * Register user
@@ -48,13 +42,6 @@ public interface ApiService {
      */
     @POST("api/auth/register")
     Call<RegisterResponse> register(@Body RegisterRequest registerRequest);
-    
-    /**
-     * Google Sign-In
-     * POST /api/auth/google-signin
-     */
-    @POST("api/auth/google-signin")
-    Call<LoginResponse> googleSignIn(@Body java.util.Map<String, String> body);
     
     /**
      * Save FCM Token
@@ -214,6 +201,15 @@ public interface ApiService {
      */
     @DELETE("resolutions/{id}")
     Call<String> deleteResolution(@Path("id") int resolutionId);
+    
+    // ============ UPLOAD ============
+    
+    /**
+     * Upload profile picture to Cloudinary
+     * POST /api/upload/profile-picture
+     */
+    @POST("api/upload/profile-picture")
+    Call<Object> uploadProfilePicture(@Body java.util.Map<String, String> body);
     
     // ============ KP FORMS ============
     
@@ -405,31 +401,6 @@ class LoginRequest {
     }
 }
 
-class RegisterRequest {
-    public String username;
-    public String email;
-    public String password;
-    public String confirmPassword;
-    
-    public RegisterRequest(String username, String email, String password, String confirmPassword) {
-        this.username = username;
-        this.email = email;
-        this.password = password;
-        this.confirmPassword = confirmPassword;
-    }
-}
-
-class RegisterResponse {
-    public boolean success;
-    public String message;
-    public RegisterData data;
-    
-    public static class RegisterData {
-        public User user;
-        public String token;
-    }
-}
-
 class SendCodeResponse {
     public boolean success;
     public String message;
@@ -438,15 +409,5 @@ class SendCodeResponse {
 class VerifyEmailResponse {
     public boolean success;
     public String message;
-}
-
-class LoginResponse {
-    public boolean success;
-    public String message;
-    public LoginData data;
-    
-    public static class LoginData {
-        public User user;
-        public String token;
-    }
+    public String code;
 }

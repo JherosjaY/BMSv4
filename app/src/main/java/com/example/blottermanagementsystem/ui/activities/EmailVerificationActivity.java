@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat;
 
 import com.example.blottermanagementsystem.R;
 import com.example.blottermanagementsystem.utils.PreferencesManager;
+import com.example.blottermanagementsystem.utils.NeonAuthManager;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -35,6 +36,8 @@ public class EmailVerificationActivity extends AppCompatActivity {
     private CountDownTimer countDownTimer;
     private static final long TIMER_DURATION = 5 * 60 * 1000; // 5 minutes
     private boolean timerRunning = false;
+    private NeonAuthManager neonAuthManager;
+    private PreferencesManager preferencesManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,6 +46,10 @@ public class EmailVerificationActivity extends AppCompatActivity {
         
         // Set status bar and navigation bar colors to match background
         setSystemBarColors();
+        
+        // Initialize managers
+        neonAuthManager = new NeonAuthManager(this);
+        preferencesManager = new PreferencesManager(this);
         
         // Get email and type from intent
         userEmail = getIntent().getStringExtra("email");
@@ -279,8 +286,8 @@ public class EmailVerificationActivity extends AppCompatActivity {
     }
 
     private void callVerifyEmailAPI(String code) {
-        // ✅ Call backend API to verify email with 6-digit code
-        android.util.Log.d("EmailVerification", "🔐 Verifying email with code: " + code);
+        // ✅ Call Neon Auth to verify email with 6-digit code
+        android.util.Log.d("EmailVerification", "🔐 Verifying email with Neon Auth - Code: " + code);
         
         // Check network availability
         com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
@@ -293,33 +300,36 @@ public class EmailVerificationActivity extends AppCompatActivity {
             return;
         }
         
-        // Call backend API
-        com.example.blottermanagementsystem.utils.ApiClient.verifyEmail(userEmail, code,
-            new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<Object>() {
-                @Override
-                public void onSuccess(Object result) {
-                    android.util.Log.d("EmailVerification", "✅ Email verified successfully!");
-                    showLoading(false);
-                    Toast.makeText(EmailVerificationActivity.this, "Email verified successfully!", Toast.LENGTH_SHORT).show();
-                    
-                    // Navigate based on verification type
-                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                        if ("registration".equals(verificationType)) {
-                            autoLogin();
-                        } else if ("reset_password".equals(verificationType)) {
-                            navigateToResetPassword();
-                        }
-                    }, 1500);
-                }
+        // Call Neon Auth to verify email
+        neonAuthManager.verifyEmail(userEmail, code, new NeonAuthManager.AuthCallback() {
+            @Override
+            public void onSuccess(NeonAuthManager.AuthUser user) {
+                android.util.Log.d("EmailVerification", "✅ Email verified successfully!");
+                showLoading(false);
+                Toast.makeText(EmailVerificationActivity.this, "Email verified successfully!", Toast.LENGTH_SHORT).show();
+
+                // Email is verified - DO NOT create user yet!
+                // User will be created in ProfilePictureSelectionActivity when "Continue" is clicked
+                // Just navigate to profile picture selection
+                String regEmail = preferencesManager.getTempEmail();
                 
-                @Override
-                public void onError(String errorMessage) {
-                    android.util.Log.e("EmailVerification", "❌ Verification failed: " + errorMessage);
-                    showLoading(false);
-                    Toast.makeText(EmailVerificationActivity.this, "Invalid verification code. Please try again.", Toast.LENGTH_SHORT).show();
-                    clearAllFields();
-                }
-            });
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    Intent intent = new Intent(EmailVerificationActivity.this, ProfilePictureSelectionActivity.class);
+                    intent.putExtra("email", regEmail);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                }, 1500);
+            }
+            
+            @Override
+            public void onError(String errorMessage) {
+                android.util.Log.e("EmailVerification", "❌ Verification failed: " + errorMessage);
+                showLoading(false);
+                Toast.makeText(EmailVerificationActivity.this, "Invalid verification code. Please try again.", Toast.LENGTH_SHORT).show();
+                clearAllFields();
+            }
+        });
     }
 
     private void autoLogin() {

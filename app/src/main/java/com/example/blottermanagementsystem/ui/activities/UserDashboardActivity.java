@@ -30,8 +30,10 @@ import com.takusemba.spotlight.Spotlight;
 import com.takusemba.spotlight.Target;
 import com.takusemba.spotlight.shape.Circle;
 import com.takusemba.spotlight.shape.RoundedRectangle;
+import com.google.android.material.chip.Chip;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
 
@@ -47,10 +49,17 @@ public class UserDashboardActivity extends BaseActivity {
     private androidx.swiperefreshlayout.widget.SwipeRefreshLayout swipeRefresh;
     private boolean isFabMenuOpen = false;
     
+    // Filtering chips
+    private Chip chipAll, chipPending, chipOngoing, chipResolved;
+    private ImageView emptyStateIcon;
+    private TextView emptyStateTitle, emptyStateMessage;
+    private String currentFilter = "all";
+    
     private PreferencesManager preferencesManager;
     private RecyclerView recyclerReports;
     private ReportAdapter adapter;
     private List<BlotterReport> reportsList = new ArrayList<>();
+    private List<BlotterReport> allReports = new ArrayList<>();
     private BlotterDatabase database;
     private ImageView ivUserProfile;
     private CardView ivProfilePic;
@@ -101,6 +110,17 @@ public class UserDashboardActivity extends BaseActivity {
         emptyState = findViewById(R.id.emptyState);
         emptyStateCard = findViewById(R.id.emptyStateCard);
         swipeRefresh = findViewById(R.id.swipeRefresh);
+        
+        // Initialize filtering chips
+        chipAll = findViewById(R.id.chipAll);
+        chipPending = findViewById(R.id.chipPending);
+        chipOngoing = findViewById(R.id.chipOngoing);
+        chipResolved = findViewById(R.id.chipResolved);
+        
+        // Initialize empty state views
+        emptyStateIcon = findViewById(R.id.emptyStateIcon);
+        emptyStateTitle = findViewById(R.id.emptyStateTitle);
+        emptyStateMessage = findViewById(R.id.emptyStateMessage);
         
         // Null checks
         if (emptyState == null || emptyStateCard == null || recyclerReports == null) {
@@ -181,75 +201,58 @@ public class UserDashboardActivity extends BaseActivity {
         android.util.Log.d("UserDashboard", "First name from prefs: " + preferencesManager.getFirstName());
         android.util.Log.d("UserDashboard", "Last name from prefs: " + preferencesManager.getLastName());
         
-        Executors.newSingleThreadExecutor().execute(() -> {
-            int userIdInt = Integer.parseInt(userId);
-            User currentUser = database.userDao().getUserById(userIdInt);
-            android.util.Log.d("UserDashboard", "User loaded: " + (currentUser != null ? currentUser.getUsername() : "NULL"));
-            
-            runOnUiThread(() -> {
-                if (currentUser != null) {
-                    // Set welcome message with REAL data from database
-                    String firstName = currentUser.getFirstName();
-                    android.util.Log.d("UserDashboard", "FirstName: " + firstName);
-                    if (firstName != null && !firstName.isEmpty()) {
-                        tvWelcome.setText("Welcome, " + firstName + "!");
-                    } else {
-                        tvWelcome.setText("Welcome!");
-                    }
-                    
-                    // Load profile picture
-                    loadProfilePicture();
-                } else {
-                    android.util.Log.e("UserDashboard", "ERROR: User with ID " + userId + " not found in database!");
-                    tvWelcome.setText("Welcome!");
-                    Toast.makeText(this, "User data not found", Toast.LENGTH_SHORT).show();
-                }
-            });
-        });
+        // Use data from PreferencesManager (pure online - no local database)
+        String firstName = preferencesManager.getFirstName();
+        android.util.Log.d("UserDashboard", "FirstName from prefs: " + firstName);
+        if (firstName != null && !firstName.isEmpty()) {
+            tvWelcome.setText("Welcome, " + firstName + "!");
+        } else {
+            tvWelcome.setText("Welcome!");
+        }
+        
+        // Load profile picture
+        loadProfilePicture();
     }
     
     private void loadProfilePicture() {
-        if (ivUserProfile == null) return;
+        android.util.Log.d("UserDashboard", "=== LOAD PROFILE PICTURE ===");
         
-        String userId = preferencesManager.getUserId();
+        if (ivUserProfile == null) {
+            android.util.Log.e("UserDashboard", "❌ ivUserProfile is NULL!");
+            return;
+        }
         
-        // Load from database for real-time sync
-        Executors.newSingleThreadExecutor().execute(() -> {
-            int userIdInt = Integer.parseInt(userId);
-            User user = database.userDao().getUserById(userIdInt);
-            String profileImageUri = null;
-            
-            if (user != null && user.getProfilePhotoUri() != null && !user.getProfilePhotoUri().isEmpty()) {
-                profileImageUri = user.getProfilePhotoUri();
+        if (ivProfilePic == null) {
+            android.util.Log.e("UserDashboard", "❌ ivProfilePic CardView is NULL!");
+        }
+        
+        // Load from PreferencesManager (pure online - no local database)
+        String profileImageUri = preferencesManager.getProfileImageUri();
+        android.util.Log.d("UserDashboard", "Profile image URI from PreferencesManager: " + profileImageUri);
+        
+        if (profileImageUri != null && !profileImageUri.isEmpty()) {
+            android.util.Log.d("UserDashboard", "📸 Loading profile image from: " + profileImageUri);
+            try {
+                // Clear tint before loading image
+                ivUserProfile.setImageTintList(null);
+                
+                // For Cloudinary URLs, load directly
+                Glide.with(this)
+                    .load(profileImageUri)
+                    .apply(RequestOptions.circleCropTransform())
+                    .placeholder(R.drawable.ic_person)
+                    .error(R.drawable.ic_person)
+                    .into(ivUserProfile);
+                android.util.Log.d("UserDashboard", "✅ Profile image loaded successfully from Cloudinary");
+            } catch (Exception e) {
+                android.util.Log.e("UserDashboard", "❌ Error loading profile image: " + e.getMessage());
+                e.printStackTrace();
+                ivUserProfile.setImageResource(R.drawable.ic_person);
             }
-            
-            final String finalProfileImageUri = profileImageUri;
-            
-            runOnUiThread(() -> {
-                if (finalProfileImageUri != null && !finalProfileImageUri.isEmpty()) {
-                    android.util.Log.d("UserDashboard", "Loading profile image: " + finalProfileImageUri);
-                    try {
-                        // Clear tint before loading image
-                        ivUserProfile.setImageTintList(null);
-                        
-                        Uri imageUri = Uri.parse(finalProfileImageUri);
-                        Glide.with(this)
-                            .load(imageUri)
-                            .apply(RequestOptions.circleCropTransform())
-                            .placeholder(R.drawable.ic_person)
-                            .error(R.drawable.ic_person)
-                            .into(ivUserProfile);
-                        android.util.Log.d("UserDashboard", "✅ Profile image loaded successfully");
-                    } catch (Exception e) {
-                        android.util.Log.e("UserDashboard", "❌ Error loading profile image: " + e.getMessage());
-                        ivUserProfile.setImageResource(R.drawable.ic_person);
-                    }
-                } else {
-                    android.util.Log.d("UserDashboard", "No profile image URI found");
-                    ivUserProfile.setImageResource(R.drawable.ic_person);
-                }
-            });
-        });
+        } else {
+            android.util.Log.d("UserDashboard", "⚠️ No profile image URI found in PreferencesManager");
+            ivUserProfile.setImageResource(R.drawable.ic_person);
+        }
     }
     
     private void setupRecyclerView() {
@@ -328,9 +331,50 @@ public class UserDashboardActivity extends BaseActivity {
         // Statistics Cards Click Listeners
         setupStatisticsCardListeners();
         
+        // Setup filtering chips
+        setupChipFiltering();
+        
         if (btnSettings != null) {
             btnSettings.setOnClickListener(v -> {
                 startActivity(new Intent(this, SettingsActivity.class));
+            });
+        }
+    }
+    
+    private void setupChipFiltering() {
+        if (chipAll != null) {
+            chipAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    currentFilter = "all";
+                    filterReports();
+                }
+            });
+        }
+        
+        if (chipPending != null) {
+            chipPending.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    currentFilter = "pending";
+                    filterReports();
+                }
+            });
+        }
+        
+        if (chipOngoing != null) {
+            chipOngoing.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    currentFilter = "ongoing";
+                    filterReports();
+                }
+            });
+        }
+        
+        if (chipResolved != null) {
+            chipResolved.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (isChecked) {
+                    currentFilter = "resolved";
+                    filterReports();
+                }
             });
         }
     }
@@ -421,21 +465,17 @@ public class UserDashboardActivity extends BaseActivity {
     private void loadData() {
         String userId = preferencesManager.getUserId();
         
-        // Show loading for user dashboard
-        com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Loading reports...");
-        
-        // ✅ PURE ONLINE: Check internet first
+        // ✅ PURE ONLINE: Check internet first (no global loading animation)
         com.example.blottermanagementsystem.utils.NetworkMonitor networkMonitor = 
             new com.example.blottermanagementsystem.utils.NetworkMonitor(this);
         
         if (!networkMonitor.isNetworkAvailable()) {
             android.util.Log.e("UserDashboard", "❌ No internet connection");
-            com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
             Toast.makeText(this, "No internet connection. Please check your connection.", Toast.LENGTH_SHORT).show();
             return;
         }
         
-        // Online - proceed with API call
+        // Online - proceed with API call (load silently in background)
         android.util.Log.d("UserDashboard", "🌐 Internet available - Loading reports from API");
         loadReportsViaApi(userId);
     }
@@ -444,6 +484,15 @@ public class UserDashboardActivity extends BaseActivity {
      * Pure Online: Load reports via API (Neon database only)
      */
     private void loadReportsViaApi(String userId) {
+        try {
+            if (com.example.blottermanagementsystem.utils.ApiClient.getApiService() == null) {
+                android.util.Log.e("UserDashboard", "❌ ApiService is NULL - initializing ApiClient");
+                com.example.blottermanagementsystem.utils.ApiClient.initApiClient();
+            }
+        } catch (Exception e) {
+            android.util.Log.e("UserDashboard", "❌ Error initializing ApiClient: " + e.getMessage());
+        }
+        
         com.example.blottermanagementsystem.utils.ApiClient.getAllReports(
             new com.example.blottermanagementsystem.utils.ApiClient.ApiCallback<List<BlotterReport>>() {
                 @Override
@@ -451,10 +500,9 @@ public class UserDashboardActivity extends BaseActivity {
                     android.util.Log.d("UserDashboard", "✅ Reports loaded from API: " + allReports.size());
                     
                     // Filter reports by current user
-                    List<BlotterReport> userReports = new ArrayList<>();
-                    int userIdInt = Integer.parseInt(userId);
-                    for (BlotterReport report : allReports) {
-                        if (report.getReportedById() == userIdInt) {
+                    List<BlotterReport> userReports = new ArrayList<>(); // Filtering by String userId
+                                        for (BlotterReport report : allReports) {
+                        if (String.valueOf(report.getReportedById()).equals(userId)) {
                             userReports.add(report);
                         }
                     }
@@ -496,7 +544,6 @@ public class UserDashboardActivity extends BaseActivity {
                         }
                         
                         swipeRefresh.setRefreshing(false);
-                        com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
                     });
                 }
                 
@@ -505,7 +552,6 @@ public class UserDashboardActivity extends BaseActivity {
                     android.util.Log.e("UserDashboard", "❌ Failed to load reports: " + errorMessage);
                     runOnUiThread(() -> {
                         swipeRefresh.setRefreshing(false);
-                        com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
                         Toast.makeText(UserDashboardActivity.this, "Failed to load reports: " + errorMessage, Toast.LENGTH_SHORT).show();
                     });
                 }
@@ -515,13 +561,10 @@ public class UserDashboardActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        
-        // Reload user data from database
-        loadUserFromDatabase();
-        
-        // Always refresh data when returning to dashboard to show latest updates
-        loadData();
-        
+        // Reload profile picture in case it was updated
+        loadProfilePicture();
+        // Load data silently in background (no loading animation)
+        loadDataQuietly();
         // Update notification badge
         updateNotificationBadge();
     }
@@ -535,10 +578,9 @@ public class UserDashboardActivity extends BaseActivity {
                 List<BlotterReport> allReports = database.blotterReportDao().getAllReports();
                 
                 // Filter reports by current user
-                List<BlotterReport> userReports = new ArrayList<>();
-                int userIdInt = Integer.parseInt(userId);
-                for (BlotterReport report : allReports) {
-                    if (report.getReportedById() == userIdInt) {
+                List<BlotterReport> userReports = new ArrayList<>(); // Filtering by String userId
+                                for (BlotterReport report : allReports) {
+                    if (String.valueOf(report.getReportedById()).equals(userId)) {
                         userReports.add(report);
                     }
                 }
@@ -603,21 +645,14 @@ public class UserDashboardActivity extends BaseActivity {
 
     private void updateNotificationBadge() {
         String userId = preferencesManager.getUserId();
-        
         Executors.newSingleThreadExecutor().execute(() -> {
-            // Get unread notification count
-            int userIdInt = Integer.parseInt(userId);
-            int unreadCount = database.notificationDao().getUnreadCount(userIdInt);
-            
+            int unreadCount = 0; // TODO: Fetch from API if available
+            // No unread notification count API yet, default to 0
             runOnUiThread(() -> {
-                android.util.Log.d("UserDashboard", "Unread notifications: " + unreadCount);
-                
                 if (unreadCount > 0) {
-                    // Show badge with count
                     tvNotificationBadge.setVisibility(View.VISIBLE);
                     tvNotificationBadge.setText(unreadCount > 9 ? "9+" : String.valueOf(unreadCount));
                 } else {
-                    // Hide badge
                     tvNotificationBadge.setVisibility(View.GONE);
                 }
             });
@@ -1125,42 +1160,33 @@ public class UserDashboardActivity extends BaseActivity {
     
     /**
      * Check if user has seen tooltips and show if not (per-user, not per-device)
+     * Only shows on FIRST login
      */
     private void checkAndShowTutorial() {
         String userId = preferencesManager.getUserId();
-        
         Executors.newSingleThreadExecutor().execute(() -> {
-            int userIdInt = Integer.parseInt(userId);
-            User currentUser = database.userDao().getUserById(userIdInt);
-            
             runOnUiThread(() -> {
-                if (currentUser != null && !currentUser.hasSeenTooltips()) {
-                    // User hasn't seen tooltips yet - show them with smooth transition
+                // Check if tutorial has been shown for this user
+                boolean hasSeenTutorial = preferencesManager.getBoolean("tutorial_seen_" + userId, false);
+                
+                if (!hasSeenTutorial) {
+                    // User hasn't seen tutorial yet - show it only on first login
+                    android.util.Log.d("UserDashboard", "✅ Showing tutorial for first time");
                     fabMenu.postDelayed(this::showTutorial, 300);
+                } else {
+                    android.util.Log.d("UserDashboard", "⏭️ Tutorial already shown - skipping");
                 }
             });
         });
     }
-    
-    /**
-     * Mark tutorial as completed in database (per-user)
-     */
+
     private void markTutorialCompleted() {
         String userId = preferencesManager.getUserId();
-        
-        Executors.newSingleThreadExecutor().execute(() -> {
-            int userIdInt = Integer.parseInt(userId);
-            User currentUser = database.userDao().getUserById(userIdInt);
-            
-            if (currentUser != null) {
-                currentUser.setHasSeenTooltips(true);
-                database.userDao().updateUser(currentUser);
-                
-                android.util.Log.d("UserDashboard", "✅ Tutorial marked as completed for user: " + currentUser.getUsername());
-            }
-        });
+        // Mark tutorial as completed for this specific user
+        preferencesManager.saveBoolean("tutorial_seen_" + userId, true);
+        android.util.Log.d("UserDashboard", "✅ Tutorial marked as completed for user: " + userId);
     }
-    
+
     // Add periodic refresh for real-time dashboard updates (silent background refresh)
     private void startPeriodicRefresh() {
         android.os.Handler handler = new android.os.Handler();
@@ -1176,7 +1202,7 @@ public class UserDashboardActivity extends BaseActivity {
         };
         handler.postDelayed(refreshRunnable, 20000);
     }
-    
+
     // Add smooth touch animation to cards (same as Officer Dashboard)
     private void addCardTouchAnimation(View card) {
         card.setOnTouchListener((v, event) -> {
@@ -1204,4 +1230,82 @@ public class UserDashboardActivity extends BaseActivity {
             return false; // Allow click events to continue
         });
     }
+    
+    private void filterReports() {
+        reportsList.clear();
+        
+        switch (currentFilter) {
+            case "pending":
+                for (BlotterReport report : allReports) {
+                    String status = report.getStatus();
+                    if (status != null && "pending".equalsIgnoreCase(status)) {
+                        reportsList.add(report);
+                    }
+                }
+                break;
+            case "ongoing":
+                for (BlotterReport report : allReports) {
+                    String status = report.getStatus();
+                    if (status != null && ("ongoing".equalsIgnoreCase(status) || "in-progress".equalsIgnoreCase(status))) {
+                        reportsList.add(report);
+                    }
+                }
+                break;
+            case "resolved":
+                for (BlotterReport report : allReports) {
+                    String status = report.getStatus();
+                    if (status != null && "resolved".equalsIgnoreCase(status)) {
+                        reportsList.add(report);
+                    }
+                }
+                break;
+            case "all":
+            default:
+                reportsList.addAll(allReports);
+                break;
+        }
+        
+        adapter.notifyDataSetChanged();
+        updateEmptyState();
+    }
+    
+    private void updateEmptyState() {
+        if (reportsList.isEmpty()) {
+            if (emptyStateCard != null) emptyStateCard.setVisibility(View.VISIBLE);
+            if (emptyState != null) emptyState.setVisibility(View.VISIBLE);
+            if (recyclerReports != null) recyclerReports.setVisibility(View.GONE);
+            
+            // Update empty state message based on filter
+            updateEmptyStateMessage();
+        } else {
+            if (emptyStateCard != null) emptyStateCard.setVisibility(View.VISIBLE);
+            if (emptyState != null) emptyState.setVisibility(View.GONE);
+            if (recyclerReports != null) recyclerReports.setVisibility(View.VISIBLE);
+        }
+    }
+    
+    private void updateEmptyStateMessage() {
+        if (emptyStateTitle == null || emptyStateMessage == null) return;
+        
+        switch (currentFilter) {
+            case "pending":
+                emptyStateTitle.setText("No Pending Reports");
+                emptyStateMessage.setText("You don't have any pending reports. File a new report to get started!");
+                break;
+            case "ongoing":
+                emptyStateTitle.setText("No Ongoing Reports");
+                emptyStateMessage.setText("You don't have any ongoing reports. Check back later for updates!");
+                break;
+            case "resolved":
+                emptyStateTitle.setText("No Resolved Reports");
+                emptyStateMessage.setText("You don't have any resolved reports yet. Keep filing reports!");
+                break;
+            case "all":
+            default:
+                emptyStateTitle.setText("No Reports Yet");
+                emptyStateMessage.setText("You haven't filed any reports yet. Tap the + button to file your first report!");
+                break;
+        }
+    }
 }
+

@@ -316,6 +316,12 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
     
     private void openCamera() {
         try {
+            if (cameraLauncher == null) {
+                android.util.Log.e("ProfilePictureSelection", "❌ cameraLauncher is NULL!");
+                Toast.makeText(this, "Camera launcher not initialized", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
             // Create image file
             File photoFile = createImageFile();
             if (photoFile != null) {
@@ -331,6 +337,7 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
                 intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", true);
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                android.util.Log.d("ProfilePictureSelection", "📸 Launching camera...");
                 cameraLauncher.launch(intent);
             }
         } catch (IOException e) {
@@ -340,25 +347,41 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
     }
     
     private void openGallery() {
+        if (galleryLauncher == null) {
+            android.util.Log.e("ProfilePictureSelection", "❌ galleryLauncher is NULL!");
+            Toast.makeText(this, "Gallery launcher not initialized", Toast.LENGTH_SHORT).show();
+            return;
+        }
         // Use native photo picker (same as ProfileActivity)
+        android.util.Log.d("ProfilePictureSelection", "🖼️ Launching gallery...");
         galleryLauncher.launch("image/*");
     }
     
     private void setupListeners() {
-        btnTakePhoto.setOnClickListener(v -> {
-            if (checkCameraPermission()) {
-                // Permission already granted - open camera directly
-                openCamera();
-            } else {
-                // Request camera permission
-                cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
-            }
-        });
+        if (btnTakePhoto == null) {
+            android.util.Log.e("ProfilePictureSelection", "❌ btnTakePhoto is NULL!");
+        } else {
+            btnTakePhoto.setOnClickListener(v -> {
+                android.util.Log.d("ProfilePictureSelection", "📸 Camera button clicked");
+                if (checkCameraPermission()) {
+                    // Permission already granted - open camera directly
+                    openCamera();
+                } else {
+                    // Request camera permission
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+                }
+            });
+        }
         
-        btnChooseGallery.setOnClickListener(v -> {
-            // Native photo picker doesn't need storage permission!
-            openGallery();
-        });
+        if (btnChooseGallery == null) {
+            android.util.Log.e("ProfilePictureSelection", "❌ btnChooseGallery is NULL!");
+        } else {
+            btnChooseGallery.setOnClickListener(v -> {
+                android.util.Log.d("ProfilePictureSelection", "🖼️ Gallery button clicked");
+                // Native photo picker doesn't need storage permission!
+                openGallery();
+            });
+        }
         
         btnSkip.setOnClickListener(v -> {
             // ✅ FIXED: Validate firstname and lastname BEFORE allowing skip
@@ -370,19 +393,15 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
             android.util.Log.d("ProfilePictureSelection", "LastName: '" + lastName + "'");
             android.util.Log.d("ProfilePictureSelection", "Image selected: " + (selectedImageUri != null));
             
-            // ✅ STRICT: FirstName and LastName are MANDATORY
+            // ✅ STRICT: FirstName and LastName are MANDATORY (even for skip)
             if (firstName.isEmpty() || lastName.isEmpty()) {
                 Toast.makeText(this, "First name and last name are required", Toast.LENGTH_SHORT).show();
                 android.util.Log.w("ProfilePictureSelection", "⚠️ User tried to skip without entering names!");
                 return;
             }
             
-            // ✅ Can only skip if picture is taken/imported (selectedImageUri is not null)
-            if (selectedImageUri == null) {
-                Toast.makeText(this, "Please take or import a photo before skipping", Toast.LENGTH_SHORT).show();
-                android.util.Log.w("ProfilePictureSelection", "⚠️ User tried to skip without selecting a picture!");
-                return;
-            }
+            // ✅ Picture is OPTIONAL when skipping - user can skip picture selection
+            // But firstName and lastName are REQUIRED
             
             // ✅ All validations passed - proceed with skip
             android.util.Log.d("ProfilePictureSelection", "✅ Skip validation passed - proceeding");
@@ -460,30 +479,104 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
                 return;
             }
             
-            // Get userId from preferences
-            String userId = preferencesManager.getUserId();
-            
-            if (userId == null || userId.isEmpty()) {
-                android.util.Log.e("ProfilePictureSelection", "❌ User ID not found");
-                Toast.makeText(this, "Error: User ID not found. Please log in again.", Toast.LENGTH_SHORT).show();
+            // Retrieve registration data from preferences
+            String regUsername = preferencesManager.getTempUsername();
+            String regEmail = preferencesManager.getTempEmail();
+            String regPassword = preferencesManager.getTempPassword();
+
+            if (regUsername == null || regEmail == null || regPassword == null) {
+                Toast.makeText(this, "Registration data missing. Please re-register.", Toast.LENGTH_SHORT).show();
                 return;
             }
-            
-            android.util.Log.d("ProfilePictureSelection", "🌐 Updating profile via API - UserId: " + userId);
-            
-            // Save profile picture URI locally if selected
+
+            // Show global loading animation
+            com.example.blottermanagementsystem.utils.GlobalLoadingManager.show(this, "Creating your account...");
+
+            // If image is selected, upload to Cloudinary first
             if (selectedImageUri != null) {
-                String uriString = selectedImageUri.toString();
-                preferencesManager.setProfileImageUri(uriString);
-                android.util.Log.d("ProfilePictureSelection", "✅ Saved profile image URI locally");
+                android.util.Log.d("ProfilePictureSelection", "📤 Uploading profile picture to Cloudinary...");
+                com.example.blottermanagementsystem.utils.CloudinaryUploadManager uploadManager = 
+                    new com.example.blottermanagementsystem.utils.CloudinaryUploadManager(this);
+                
+                uploadManager.uploadProfilePicture(selectedImageUri, new com.example.blottermanagementsystem.utils.CloudinaryUploadManager.UploadCallback() {
+                    @Override
+                    public void onSuccess(String cloudinaryUrl) {
+                        android.util.Log.d("ProfilePictureSelection", "✅ Profile picture uploaded to Cloudinary: " + cloudinaryUrl);
+                        // Save Cloudinary URL to preferences
+                        preferencesManager.setProfileImageUri(cloudinaryUrl);
+                        // Proceed with registration, passing the Cloudinary URL
+                        proceedWithRegistration(firstName, lastName, regUsername, regEmail, regPassword, cloudinaryUrl);
+                    }
+                    
+                    @Override
+                    public void onError(String errorMessage) {
+                        android.util.Log.e("ProfilePictureSelection", "❌ Cloudinary upload failed: " + errorMessage);
+                        com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                        Toast.makeText(ProfilePictureSelectionActivity.this, "Image upload failed: " + errorMessage, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } else {
+                // No image selected, proceed with registration with null image URL
+                android.util.Log.d("ProfilePictureSelection", "No profile picture selected, proceeding with registration");
+                proceedWithRegistration(firstName, lastName, regUsername, regEmail, regPassword, null);
             }
-            
-            preferencesManager.setHasSelectedProfilePicture(true);
-            preferencesManager.setFirstName(firstName);
-            preferencesManager.setLastName(lastName);
-            
-            // Update user profile via API (Neon)
-            updateProfileViaApi(userId, firstName, lastName);
+        });
+    }
+    
+    /**
+     * Proceed with user registration after image upload (if any)
+     */
+    private void proceedWithRegistration(String firstName, String lastName, String regUsername, String regEmail, String regPassword, String profileImageUrl) {
+        // Call backend registration API with firstName, lastName, and profile image URL
+        com.example.blottermanagementsystem.utils.NeonAuthManager neonAuthManager = new com.example.blottermanagementsystem.utils.NeonAuthManager(this);
+        neonAuthManager.signUp(regEmail, regPassword, regUsername, firstName, lastName, profileImageUrl, new com.example.blottermanagementsystem.utils.NeonAuthManager.AuthCallback() {
+            @Override
+            public void onSuccess(com.example.blottermanagementsystem.utils.NeonAuthManager.AuthUser user) {
+                android.util.Log.d("ProfilePictureSelection", "✅ Registration API success in PFP");
+                // Hide loading animation
+                com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                
+                // Save user info to preferences
+                if (user != null && user.id != null) {
+                    preferencesManager.setUserId(user.id);
+                    preferencesManager.setUsername(user.username);
+                    preferencesManager.setLoggedIn(true);
+                    preferencesManager.setUserRole("user");
+                    
+                    // Save email from registration
+                    preferencesManager.saveString("user_email", regEmail);
+                    
+                    android.util.Log.d("ProfilePictureSelection", "✅ Saved userId: " + user.id);
+                    android.util.Log.d("ProfilePictureSelection", "✅ Saved username: " + user.username);
+                    android.util.Log.d("ProfilePictureSelection", "✅ Saved email: " + regEmail);
+                }
+                preferencesManager.setHasSelectedProfilePicture(true);
+                preferencesManager.setFirstName(firstName);
+                preferencesManager.setLastName(lastName);
+                
+                // ✅ CRITICAL: Save profile image URL to PreferencesManager
+                if (profileImageUrl != null && !profileImageUrl.isEmpty()) {
+                    preferencesManager.setProfileImageUri(profileImageUrl);
+                    android.util.Log.d("ProfilePictureSelection", "✅ Saved profileImageUrl: " + profileImageUrl);
+                } else {
+                    android.util.Log.d("ProfilePictureSelection", "⚠️ No profile image URL to save");
+                }
+                
+                android.util.Log.d("ProfilePictureSelection", "✅ Saved firstName: " + firstName);
+                android.util.Log.d("ProfilePictureSelection", "✅ Saved lastName: " + lastName);
+                
+                // Optionally clear temp registration data
+                preferencesManager.clearTempUserData();
+                // Navigate to dashboard
+                navigateToDashboard();
+            }
+            @Override
+            public void onError(String errorMessage) {
+                android.util.Log.e("ProfilePictureSelection", "❌ Registration API error in PFP: " + errorMessage);
+                // Hide loading animation on error
+                com.example.blottermanagementsystem.utils.GlobalLoadingManager.hide();
+                Toast.makeText(ProfilePictureSelectionActivity.this, "Account creation failed: " + errorMessage, Toast.LENGTH_LONG).show();
+            }
         });
     }
     
