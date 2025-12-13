@@ -611,10 +611,21 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
     }
     
     private void navigateToDashboard() {
-        // Mark tutorial as seen for this user (only on first registration)
+        // Check if this is a NEW user (coming from registration) or existing user
+        int userIdFromIntent = getIntent().getIntExtra("USER_ID", -1);
+        boolean isNewUser = userIdFromIntent != -1; // NEW user has USER_ID from registration flow
+        
         String userId = preferencesManager.getUserId();
-        preferencesManager.saveBoolean("tutorial_seen_" + userId, true);
-        android.util.Log.d("ProfilePictureSelection", "✅ Tutorial marked as seen for user: " + userId);
+        
+        if (isNewUser) {
+            // NEW user from registration - DO NOT mark tutorial as seen yet
+            // Tutorial will be shown in UserDashboardActivity
+            android.util.Log.d("ProfilePictureSelection", "✅ New user detected - tutorial will be shown in dashboard");
+        } else {
+            // EXISTING user logging in - mark tutorial as already seen
+            preferencesManager.saveBoolean("tutorial_seen_" + userId, true);
+            android.util.Log.d("ProfilePictureSelection", "✅ Existing user - tutorial marked as seen");
+        }
         
         // Navigate to appropriate dashboard based on user role
         String role = preferencesManager.getUserRole();
