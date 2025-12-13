@@ -277,6 +277,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
           .update(users)
           .set({
             profilePhoto: profilePhotoUri,
+            profileCompleted: profileCompleted !== undefined ? profileCompleted : true,
             updatedAt: new Date(),
           })
           .where(eq(users.id, userId))
