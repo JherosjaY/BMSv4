@@ -1210,15 +1210,24 @@ public class UserDashboardActivity extends BaseActivity {
      */
     private void checkAndShowTutorial() {
         String userId = preferencesManager.getUserId();
+        android.util.Log.d("UserDashboard", "=== CHECK AND SHOW TUTORIAL ===");
+        android.util.Log.d("UserDashboard", "UserId: " + userId);
+        
         Executors.newSingleThreadExecutor().execute(() -> {
             runOnUiThread(() -> {
                 // Check if tutorial has been shown for this user
                 boolean hasSeenTutorial = preferencesManager.getBoolean("tutorial_seen_" + userId, false);
+                android.util.Log.d("UserDashboard", "Tutorial seen flag: " + hasSeenTutorial);
+                android.util.Log.d("UserDashboard", "fabMenu is null: " + (fabMenu == null));
                 
                 if (!hasSeenTutorial) {
                     // User hasn't seen tutorial yet - show it only on first login
                     android.util.Log.d("UserDashboard", "✅ Showing tutorial for first time");
-                    fabMenu.postDelayed(this::showTutorial, 300);
+                    if (fabMenu != null) {
+                        fabMenu.postDelayed(this::showTutorial, 300);
+                    } else {
+                        android.util.Log.e("UserDashboard", "❌ fabMenu is NULL - cannot show tutorial");
+                    }
                 } else {
                     android.util.Log.d("UserDashboard", "⏭️ Tutorial already shown - skipping");
                 }
