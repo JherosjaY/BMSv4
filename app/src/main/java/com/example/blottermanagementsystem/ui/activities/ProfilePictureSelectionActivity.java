@@ -611,6 +611,11 @@ public class ProfilePictureSelectionActivity extends BaseActivity {
     }
     
     private void navigateToDashboard() {
+        // Mark tutorial as seen for this user (only on first registration)
+        String userId = preferencesManager.getUserId();
+        preferencesManager.saveBoolean("tutorial_seen_" + userId, true);
+        android.util.Log.d("ProfilePictureSelection", "✅ Tutorial marked as seen for user: " + userId);
+        
         // Navigate to appropriate dashboard based on user role
         String role = preferencesManager.getUserRole();
         Intent intent;

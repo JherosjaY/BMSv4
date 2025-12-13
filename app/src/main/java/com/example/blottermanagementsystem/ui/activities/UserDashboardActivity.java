@@ -226,31 +226,63 @@ public class UserDashboardActivity extends BaseActivity {
             android.util.Log.e("UserDashboard", "❌ ivProfilePic CardView is NULL!");
         }
         
-        // Load from PreferencesManager (pure online - no local database)
+        // First try to load from PreferencesManager (cached)
         String profileImageUri = preferencesManager.getProfileImageUri();
         android.util.Log.d("UserDashboard", "Profile image URI from PreferencesManager: " + profileImageUri);
         
         if (profileImageUri != null && !profileImageUri.isEmpty()) {
-            android.util.Log.d("UserDashboard", "📸 Loading profile image from: " + profileImageUri);
-            try {
-                // Clear tint before loading image
-                ivUserProfile.setImageTintList(null);
-                
-                // For Cloudinary URLs, load directly
-                Glide.with(this)
-                    .load(profileImageUri)
-                    .apply(RequestOptions.circleCropTransform())
-                    .placeholder(R.drawable.ic_person)
-                    .error(R.drawable.ic_person)
-                    .into(ivUserProfile);
-                android.util.Log.d("UserDashboard", "✅ Profile image loaded successfully from Cloudinary");
-            } catch (Exception e) {
-                android.util.Log.e("UserDashboard", "❌ Error loading profile image: " + e.getMessage());
-                e.printStackTrace();
-                ivUserProfile.setImageResource(R.drawable.ic_person);
-            }
+            loadImageFromUri(profileImageUri);
         } else {
-            android.util.Log.d("UserDashboard", "⚠️ No profile image URI found in PreferencesManager");
+            // If not in cache, fetch from Neon database
+            android.util.Log.d("UserDashboard", "⚠️ No profile image in cache - fetching from Neon database");
+            fetchProfileImageFromDatabase();
+        }
+    }
+    
+    private void fetchProfileImageFromDatabase() {
+        String userId = preferencesManager.getUserId();
+        
+        // Fetch user profile from API
+        com.example.blottermanagementsystem.data.api.ApiClient.getUserProfile(userId, 
+            new com.example.blottermanagementsystem.data.api.ApiClient.ApiCallback<com.example.blottermanagementsystem.data.entity.User>() {
+                @Override
+                public void onSuccess(com.example.blottermanagementsystem.data.entity.User user) {
+                    if (user != null && user.getProfileImageUrl() != null && !user.getProfileImageUrl().isEmpty()) {
+                        android.util.Log.d("UserDashboard", "✅ Profile image fetched from Neon: " + user.getProfileImageUrl());
+                        // Cache it for future use
+                        preferencesManager.setProfileImageUri(user.getProfileImageUrl());
+                        loadImageFromUri(user.getProfileImageUrl());
+                    } else {
+                        android.util.Log.d("UserDashboard", "⚠️ No profile image in database");
+                        ivUserProfile.setImageResource(R.drawable.ic_person);
+                    }
+                }
+                
+                @Override
+                public void onError(String errorMessage) {
+                    android.util.Log.e("UserDashboard", "❌ Error fetching profile from database: " + errorMessage);
+                    ivUserProfile.setImageResource(R.drawable.ic_person);
+                }
+            });
+    }
+    
+    private void loadImageFromUri(String profileImageUri) {
+        android.util.Log.d("UserDashboard", "📸 Loading profile image from: " + profileImageUri);
+        try {
+            // Clear tint before loading image
+            ivUserProfile.setImageTintList(null);
+            
+            // For Cloudinary URLs, load directly
+            Glide.with(this)
+                .load(profileImageUri)
+                .apply(RequestOptions.circleCropTransform())
+                .placeholder(R.drawable.ic_person)
+                .error(R.drawable.ic_person)
+                .into(ivUserProfile);
+            android.util.Log.d("UserDashboard", "✅ Profile image loaded successfully from Cloudinary");
+        } catch (Exception e) {
+            android.util.Log.e("UserDashboard", "❌ Error loading profile image: " + e.getMessage());
+            e.printStackTrace();
             ivUserProfile.setImageResource(R.drawable.ic_person);
         }
     }
