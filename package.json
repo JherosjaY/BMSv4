@@ -1,0 +1,35 @@
+{
+  "name": "bms-backend",
+  "version": "1.0.0",
+  "description": "Blotter Management System - Backend API",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "db:push": "drizzle-kit push:pg",
+    "db:generate": "drizzle-kit generate:pg",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "latest",
+    "@elysiajs/jwt": "latest",
+    "@elysiajs/swagger": "latest",
+    "@sendgrid/mail": "^8.1.6",
+    "bcryptjs": "latest",
+    "cloudinary": "^2.8.0",
+    "dotenv": "latest",
+    "drizzle-orm": "latest",
+    "elysia": "latest",
+    "firebase-admin": "^13.6.0",
+    "nodemailer": "latest",
+    "postgres": "latest"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "latest",
+    "@types/bun": "latest",
+    "@types/nodemailer": "latest",
+    "drizzle-kit": "latest",
+    "typescript": "latest"
+  }
+}
