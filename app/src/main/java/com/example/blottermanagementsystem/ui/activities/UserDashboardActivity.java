@@ -244,16 +244,30 @@ public class UserDashboardActivity extends BaseActivity {
         
         // Fetch user profile from API
         com.example.blottermanagementsystem.data.api.ApiClient.getUserProfile(userId, 
-            new com.example.blottermanagementsystem.data.api.ApiClient.ApiCallback<com.example.blottermanagementsystem.data.entity.User>() {
+            new com.example.blottermanagementsystem.data.api.ApiClient.ApiCallback<Object>() {
                 @Override
-                public void onSuccess(com.example.blottermanagementsystem.data.entity.User user) {
-                    if (user != null && user.getProfileImageUrl() != null && !user.getProfileImageUrl().isEmpty()) {
-                        android.util.Log.d("UserDashboard", "✅ Profile image fetched from Neon: " + user.getProfileImageUrl());
-                        // Cache it for future use
-                        preferencesManager.setProfileImageUri(user.getProfileImageUrl());
-                        loadImageFromUri(user.getProfileImageUrl());
-                    } else {
-                        android.util.Log.d("UserDashboard", "⚠️ No profile image in database");
+                public void onSuccess(Object result) {
+                    try {
+                        // Parse the result as User object
+                        if (result instanceof com.example.blottermanagementsystem.data.entity.User) {
+                            com.example.blottermanagementsystem.data.entity.User user = 
+                                (com.example.blottermanagementsystem.data.entity.User) result;
+                            
+                            if (user.getProfilePhotoUri() != null && !user.getProfilePhotoUri().isEmpty()) {
+                                android.util.Log.d("UserDashboard", "✅ Profile image fetched from Neon: " + user.getProfilePhotoUri());
+                                // Cache it for future use
+                                preferencesManager.setProfileImageUri(user.getProfilePhotoUri());
+                                loadImageFromUri(user.getProfilePhotoUri());
+                            } else {
+                                android.util.Log.d("UserDashboard", "⚠️ No profile image in database");
+                                ivUserProfile.setImageResource(R.drawable.ic_person);
+                            }
+                        } else {
+                            android.util.Log.d("UserDashboard", "⚠️ Invalid user object type");
+                            ivUserProfile.setImageResource(R.drawable.ic_person);
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.e("UserDashboard", "❌ Error parsing user profile: " + e.getMessage());
                         ivUserProfile.setImageResource(R.drawable.ic_person);
                     }
                 }
