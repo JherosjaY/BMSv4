@@ -243,7 +243,7 @@ public class UserDashboardActivity extends BaseActivity {
         String userId = preferencesManager.getUserId();
         
         // Fetch user profile from API
-        com.example.blottermanagementsystem.data.api.ApiClient.getUserProfile(userId, 
+        com.example.blottermanagementsystem.data.api.ApiClient.getProfile(userId, 
             new com.example.blottermanagementsystem.data.api.ApiClient.ApiCallback<Object>() {
                 @Override
                 public void onSuccess(Object result) {
